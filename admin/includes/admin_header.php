@@ -37,7 +37,7 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <span>Dashboard</span>
                 </a>
                 
-                <a href="<?php echo SITE_URL; ?>/admin/users.php" class="nav-item <?php echo $current_admin_page === 'users' ? 'active' : ''; ?>">
+                <a href="<?php echo SITE_URL; ?>/admin/manage_users_centralized.php" class="nav-item <?php echo $current_admin_page === 'users' ? 'active' : ''; ?>">
                     <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                     </svg>

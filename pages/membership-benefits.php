@@ -35,19 +35,16 @@ include '../includes/header.php';
                 </div>
 
                 <div class="card-grid progression-grid">
-                    <div class="card khan-card">
-                        <div class="khan-number">01</div>
+                    <div class="card khan-card"> 
                         <h3>Constructivist Learning</h3>
                         <p>Mastery through core fundamentals, elevating to complex application and traditional wisdom.
                         </p>
                     </div>
-                    <div class="card khan-card featured">
-                        <div class="khan-number yellow">02</div>
+                    <div class="card khan-card featured"> 
                         <h3>Nakmuay (Khan 1-10)</h3>
                         <p>Ten levels for students to ensure technical proficiency and discipline before promotion.</p>
                     </div>
-                    <div class="card khan-card">
-                        <div class="khan-number">03</div>
+                    <div class="card khan-card"> 
                         <h3>Mastership (Khan 11-16)</h3>
                         <p>Advanced instructor and mastership certification led by certified Kru lineage.</p>
                     </div>

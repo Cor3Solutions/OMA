@@ -204,11 +204,14 @@ include '../includes/header.php';
     }
 
     .value-icon {
-        font-size: 4.5rem;
+        font-size: 3rem;
         display: block;
         margin-bottom: 1.5rem;
-        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
-    }
+        /* Updated for a dark, sharp look */
+        filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.8)); 
+        /* Optional: slight desaturation if they feel too bright */
+        brightness: 0.9;
+    } filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3)); 
 
     .value-name {
         font-size: 1.8rem;

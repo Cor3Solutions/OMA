@@ -60,74 +60,118 @@ if (isLoggedIn() && $user_khan_level > 0) {
         </div>
 
         <div style="max-width: 900px; margin: 3rem auto;">
-            <div style="margin-bottom: 3rem;">
-                <h2 style="color: var(--color-primary); margin-bottom: 1.5rem;">The Curriculum</h2>
+
+            <div style="margin-bottom: 4rem;">
+                <h2
+                    style="color: var(--color-primary); margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 0.5rem;">
+                    Traditional Muay Boran Curriculum</h2>
                 <p style="font-size: 1.15rem; line-height: 1.8; color: var(--color-text-light);">
-                    We cover all aspects of traditional Muay Boran, from standing combat to ground fighting. Our
-                    students study:
+                    Our core curriculum follows the traditional Khan grading system, preserving the ancient techniques
+                    of the Thai battlefield.
                 </p>
-                <ul style="font-size: 1.1rem; line-height: 2; color: var(--color-text-light); columns: 2; margin-top: 1rem;">
-                    <li>Strikes (Punches, Kicks, Elbows, Knees)</li>
-                    <li>Clinching & Grappling</li>
-                    <li>Throws, Breaking, & Defense</li>
+                <ul
+                    style="font-size: 1.1rem; line-height: 2; color: var(--color-text-light); columns: 2; margin-top: 1rem;">
+                    <li>Basic & Advanced Strikes</li>
+                    <li>Mae Mai & Look Mai Techniques</li>
+                    <li>Clinching & Grappling (Muay Pram)</li>
                     <li>Ram Muay & Wai Kru Rituals</li>
-                    <li><strong>Krabi Krabong</strong> (Traditional Weaponry)</li>
-                    <li>Thai History & Philosophy</li>
+                    <li>Krabi Krabong (Weaponry)</li>
+                    <li>Thai Martial Philosophy</li>
                 </ul>
             </div>
 
+            <hr style="border: 0; border-top: 1px dashed #ccc; margin-bottom: 4rem;">
+
+            <div style="margin-bottom: 3rem;">
+                <h2
+                    style="color: var(--color-secondary); margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 0.5rem;">
+                    Specialized Courses</h2>
+                <p style="font-size: 1.15rem; line-height: 1.8; color: var(--color-text-light); margin-bottom: 2rem;">
+                    Outside of the standard grading system, we offer intensive specialized programs focused on tactical
+                    application and modern survival.
+                </p>
+
+                <div style="display: grid; gap: 2rem;">
+                    <div
+                        style="background: #616e1f; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 5px solid var(--color-secondary);">
+                        <h3 style="margin-bottom: 0.5rem;">Specialized Self Defense</h3>
+                        <span
+                            style="background: #103b66; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; text-transform: uppercase;">Unarmed
+                            Combat Track</span>
+                        <p style="margin-top: 1rem; color: var(--color-text-light);">
+                            A reality-based program focused on rapid neutralization of threats. This course covers
+                            situational awareness, defense against common street attacks, and high-pressure survival
+                            tactics.
+                        </p>
+                    </div>
+
+                    <div
+                        style="background: #616e1f; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 5px solid #8B0000;">
+                        <h3 style="margin-bottom: 0.5rem;">Pekiti Tirsia Kali (PTK)</h3>
+                        <span
+                            style="background: #103b66; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; text-transform: uppercase;">Filipino
+                            Fighting Arts</span>
+                        <p style="margin-top: 1rem; color: var(--color-text-light);">
+                            A highly effective close-quarter combat system from the Philippines. This specialized course
+                            focuses on blade and stick application, as well as the transition into empty-hand combat
+                            (Mano-Mano).
+                        </p>
+                    </div>
+                </div>
+            </div>
             <?php if (isLoggedIn() && $user_khan_level > 0): ?>
                 <!-- Show available course materials for logged-in members -->
                 <div style="margin-bottom: 3rem;">
                     <h2 style="color: var(--color-primary); margin-bottom: 1.5rem;">Available Course Materials</h2>
                     <p style="font-size: 1.1rem; color: var(--color-text-light); margin-bottom: 2rem;">
-                        Based on your current level (Khan <?php echo $user_khan_level; ?>), these materials are available to you:
+                        Based on your current level (Khan <?php echo $user_khan_level; ?>), these materials are available to
+                        you:
                     </p>
 
                     <?php if ($courses->num_rows > 0): ?>
                         <div style="display: grid; gap: 1.5rem;">
-                            <?php 
+                            <?php
                             $current_category = '';
-                            while ($course = $courses->fetch_assoc()): 
+                            while ($course = $courses->fetch_assoc()):
                                 if ($current_category != $course['category']) {
-                                    if ($current_category != '') echo '</div>';
+                                    if ($current_category != '')
+                                        echo '</div>';
                                     $current_category = $course['category'];
-                                    echo '<h3 style="color: var(--color-secondary); margin-top: 2rem; margin-bottom: 1rem;">' 
-                                         . ucfirst($current_category) . ' Level</h3>';
+                                    echo '<h3 style="color: var(--color-secondary); margin-top: 2rem; margin-bottom: 1rem;">'
+                                        . ucfirst($current_category) . ' Level</h3>';
                                     echo '<div style="display: grid; gap: 1rem;">';
                                 }
-                            ?>
+                                ?>
                                 <div class="card" style="padding: 1.5rem;">
                                     <div style="display: flex; gap: 1.5rem; align-items: start;">
                                         <?php if (!empty($course['thumbnail_path'])): ?>
-                                            <img src="../<?php echo htmlspecialchars($course['thumbnail_path']); ?>" 
-                                                 alt="<?php echo htmlspecialchars($course['title']); ?>"
-                                                 style="width: 120px; height: 80px; object-fit: cover; border-radius: 8px;">
+                                            <img src="../<?php echo htmlspecialchars($course['thumbnail_path']); ?>"
+                                                alt="<?php echo htmlspecialchars($course['title']); ?>"
+                                                style="width: 120px; height: 80px; object-fit: cover; border-radius: 8px;">
                                         <?php endif; ?>
                                         <div style="flex: 1;">
-                                            <h4 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($course['title']); ?></h4>
+                                            <h4 style="margin-bottom: 0.5rem;"><?php echo htmlspecialchars($course['title']); ?>
+                                            </h4>
                                             <p style="color: var(--color-text-light); font-size: 0.95rem; margin-bottom: 0.5rem;">
                                                 <?php echo htmlspecialchars($course['description']); ?>
                                             </p>
-                                            <div style="display: flex; gap: 1rem; font-size: 0.9rem; color: var(--color-text-light);">
-                                                <span>📊 Khan <?php echo $course['khan_level_min']; ?>-<?php echo $course['khan_level_max']; ?></span>
+                                            <div
+                                                style="display: flex; gap: 1rem; font-size: 0.9rem; color: var(--color-text-light);">
+                                                <span>📊 Khan
+                                                    <?php echo $course['khan_level_min']; ?>-<?php echo $course['khan_level_max']; ?></span>
                                                 <?php if ($course['duration_minutes']): ?>
                                                     <span>⏱️ <?php echo $course['duration_minutes']; ?> min</span>
                                                 <?php endif; ?>
                                             </div>
                                             <?php if (!empty($course['video_url'])): ?>
-                                                <a href="<?php echo htmlspecialchars($course['video_url']); ?>" 
-                                                   target="_blank" 
-                                                   class="btn btn-primary btn-sm" 
-                                                   style="margin-top: 1rem;">
+                                                <a href="<?php echo htmlspecialchars($course['video_url']); ?>" target="_blank"
+                                                    class="btn btn-primary btn-sm" style="margin-top: 1rem;">
                                                     Watch Video
                                                 </a>
                                             <?php endif; ?>
                                             <?php if (!empty($course['file_path'])): ?>
-                                                <a href="../<?php echo htmlspecialchars($course['file_path']); ?>" 
-                                                   target="_blank" 
-                                                   class="btn btn-outline btn-sm" 
-                                                   style="margin-top: 1rem;">
+                                                <a href="../<?php echo htmlspecialchars($course['file_path']); ?>" target="_blank"
+                                                    class="btn btn-outline btn-sm" style="margin-top: 1rem;">
                                                     Download Material
                                                 </a>
                                             <?php endif; ?>
@@ -135,16 +179,17 @@ if (isLoggedIn() && $user_khan_level > 0) {
                                     </div>
                                 </div>
                             <?php endwhile; ?>
-                            </div>
-                        <?php else: ?>
-                            <p style="text-align: center; padding: 2rem; background: var(--color-bg-light); border-radius: 8px;">
-                                No course materials available for your current level yet. Check back soon!
-                            </p>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+                    <?php else: ?>
+                        <p style="text-align: center; padding: 2rem; background: var(--color-bg-light); border-radius: 8px;">
+                            No course materials available for your current level yet. Check back soon!
+                        </p>
+                    <?php endif; ?>
+                </div>
             <?php else: ?>
                 <!-- Show enrollment message for non-members -->
-                <div style="margin-bottom: 3rem; background: var(--color-light); padding: 2rem; border-radius: 8px; border-left: 5px solid var(--color-primary);">
+                <div
+                    style="margin-bottom: 3rem; background: var(--color-light); padding: 2rem; border-radius: 8px; border-left: 5px solid var(--color-primary);">
                     <h2 style="color: var(--color-primary); margin-bottom: 1.5rem;">Access Course Materials</h2>
                     <p style="font-size: 1.15rem; line-height: 1.8; color: var(--color-text-light); margin-bottom: 1rem;">
                         To access detailed course materials, training schedules, and exclusive content, enrollment in our

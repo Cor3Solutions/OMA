@@ -1,0 +1,1029 @@
+<?php
+$page_title = "Centralized User Management";
+require_once '../config/database.php';
+requireAdmin();
+
+$conn = getDbConnection();
+$success = '';
+$error = '';
+
+// Handle form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['add_user'])) {
+        $name = sanitize($_POST['name']);
+        $email = sanitize($_POST['email']);
+        $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
+        $password = $_POST['password'];
+        $role = $_POST['role'];
+        $status = $_POST['status'];
+        
+        // Check if email exists
+        $check = $conn->query("SELECT id FROM users WHERE email = '" . $conn->real_escape_string($email) . "'");
+        if ($check->num_rows > 0) {
+            $error = 'Email already exists';
+        } else {
+            // Start transaction
+            $conn->begin_transaction();
+            
+            try {
+                // Insert user
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("INSERT INTO users (name, email, phone, password, role, status) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("ssssss", $name, $email, $phone, $hashed_password, $role, $status);
+                
+                if (!$stmt->execute()) {
+                    throw new Exception('Failed to create user');
+                }
+                
+                $user_id = $conn->insert_id;
+                $stmt->close();
+                
+                // Handle role-specific data
+                if ($role === 'member') {
+                    $current_khan_level = isset($_POST['current_khan_level']) ? (int)$_POST['current_khan_level'] : 1;
+                    $khan_color = isset($_POST['khan_color']) ? sanitize($_POST['khan_color']) : '';
+                    $date_joined = isset($_POST['date_joined']) ? $_POST['date_joined'] : date('Y-m-d');
+                    $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
+                    $instructor_id = !empty($_POST['instructor_id']) ? (int)$_POST['instructor_id'] : null;
+                    $training_location = isset($_POST['training_location']) ? sanitize($_POST['training_location']) : '';
+                    $member_notes = isset($_POST['member_notes']) ? sanitize($_POST['member_notes']) : '';
+                    
+                    $stmt = $conn->prepare("INSERT INTO khan_members (user_id, full_name, email, phone, current_khan_level, khan_color, date_joined, date_promoted, instructor_id, training_location, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("isssississss", $user_id, $name, $email, $phone, $current_khan_level, $khan_color, $date_joined, $date_promoted, $instructor_id, $training_location, $status, $member_notes);
+                    
+                    if (!$stmt->execute()) {
+                        throw new Exception('Failed to create khan member profile');
+                    }
+                    $stmt->close();
+                }
+                
+                elseif ($role === 'instructor') {
+                    $khan_level = isset($_POST['khan_level']) ? sanitize($_POST['khan_level']) : '';
+                    $title = isset($_POST['title']) ? sanitize($_POST['title']) : '';
+                    $location = isset($_POST['location']) ? sanitize($_POST['location']) : '';
+                    $specialization = isset($_POST['specialization']) ? sanitize($_POST['specialization']) : '';
+                    $bio = isset($_POST['bio']) ? sanitize($_POST['bio']) : '';
+                    $facebook_url = isset($_POST['facebook_url']) ? sanitize($_POST['facebook_url']) : '';
+                    $display_order = isset($_POST['display_order']) ? (int)$_POST['display_order'] : 0;
+                    
+                    // Handle photo upload
+                    $photo_path = '';
+                    if (!empty($_FILES['photo']['name'])) {
+                        $upload = uploadFile($_FILES['photo'], UPLOAD_DIR . 'instructors/', ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+                        if ($upload['success']) {
+                            $photo_path = 'assets/uploads/instructors/' . $upload['filename'];
+                        } else {
+                            throw new Exception($upload['message']);
+                        }
+                    }
+                    
+                    $stmt = $conn->prepare("INSERT INTO instructors (user_id, name, photo_path, khan_level, title, location, specialization, bio, facebook_url, email, phone, display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("issssssssssis", $user_id, $name, $photo_path, $khan_level, $title, $location, $specialization, $bio, $facebook_url, $email, $phone, $display_order, $status);
+                    
+                    if (!$stmt->execute()) {
+                        throw new Exception('Failed to create instructor profile');
+                    }
+                    $stmt->close();
+                }
+                
+                // Commit transaction
+                $conn->commit();
+                $success = 'User and profile created successfully!';
+                
+            } catch (Exception $e) {
+                // Rollback on error
+                $conn->rollback();
+                $error = $e->getMessage();
+            }
+        }
+    }
+    
+    elseif (isset($_POST['edit_user'])) {
+        $id = (int)$_POST['id'];
+        $name = sanitize($_POST['name']);
+        $email = sanitize($_POST['email']);
+        $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
+        $role = $_POST['role'];
+        $status = $_POST['status'];
+        $password = $_POST['password'];
+        
+        // Check if email exists for other users
+        $check = $conn->query("SELECT id FROM users WHERE email = '" . $conn->real_escape_string($email) . "' AND id != $id");
+        if ($check->num_rows > 0) {
+            $error = 'Email already exists';
+        } else {
+            $conn->begin_transaction();
+            
+            try {
+                // Update user
+                if (!empty($password)) {
+                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $conn->prepare("UPDATE users SET name=?, email=?, phone=?, password=?, role=?, status=? WHERE id=?");
+                    $stmt->bind_param("ssssssi", $name, $email, $phone, $hashed_password, $role, $status, $id);
+                } else {
+                    $stmt = $conn->prepare("UPDATE users SET name=?, email=?, phone=?, role=?, status=? WHERE id=?");
+                    $stmt->bind_param("sssssi", $name, $email, $phone, $role, $status, $id);
+                }
+                
+                if (!$stmt->execute()) {
+                    throw new Exception('Failed to update user');
+                }
+                $stmt->close();
+                
+                // Update role-specific data
+                if ($role === 'member') {
+                    $current_khan_level = isset($_POST['current_khan_level']) ? (int)$_POST['current_khan_level'] : 1;
+                    $khan_color = isset($_POST['khan_color']) ? sanitize($_POST['khan_color']) : '';
+                    $date_joined = isset($_POST['date_joined']) ? $_POST['date_joined'] : date('Y-m-d');
+                    $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
+                    $instructor_id = !empty($_POST['instructor_id']) ? (int)$_POST['instructor_id'] : null;
+                    $training_location = isset($_POST['training_location']) ? sanitize($_POST['training_location']) : '';
+                    $member_notes = isset($_POST['member_notes']) ? sanitize($_POST['member_notes']) : '';
+                    
+                    // Check if khan_member exists
+                    $check = $conn->query("SELECT id FROM khan_members WHERE user_id = $id");
+                    if ($check->num_rows > 0) {
+                        // Update existing
+                        $stmt = $conn->prepare("UPDATE khan_members SET full_name=?, email=?, phone=?, current_khan_level=?, khan_color=?, date_joined=?, date_promoted=?, instructor_id=?, training_location=?, status=?, notes=? WHERE user_id=?");
+                        $stmt->bind_param("sssississssi", $name, $email, $phone, $current_khan_level, $khan_color, $date_joined, $date_promoted, $instructor_id, $training_location, $status, $member_notes, $id);
+                    } else {
+                        // Create new
+                        $stmt = $conn->prepare("INSERT INTO khan_members (user_id, full_name, email, phone, current_khan_level, khan_color, date_joined, date_promoted, instructor_id, training_location, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("isssississss", $id, $name, $email, $phone, $current_khan_level, $khan_color, $date_joined, $date_promoted, $instructor_id, $training_location, $status, $member_notes);
+                    }
+                    
+                    if (!$stmt->execute()) {
+                        throw new Exception('Failed to update khan member profile');
+                    }
+                    $stmt->close();
+                    
+                    // Delete instructor profile if exists (role changed from instructor to member)
+                    $result = $conn->query("SELECT photo_path FROM instructors WHERE user_id = $id");
+                    if ($instructor = $result->fetch_assoc()) {
+                        if (!empty($instructor['photo_path']) && file_exists($instructor['photo_path'])) {
+                            deleteFile($instructor['photo_path']);
+                        }
+                    }
+                    $conn->query("DELETE FROM instructors WHERE user_id = $id");
+                }
+                
+                elseif ($role === 'instructor') {
+                    $khan_level = isset($_POST['khan_level']) ? sanitize($_POST['khan_level']) : '';
+                    $title = isset($_POST['title']) ? sanitize($_POST['title']) : '';
+                    $location = isset($_POST['location']) ? sanitize($_POST['location']) : '';
+                    $specialization = isset($_POST['specialization']) ? sanitize($_POST['specialization']) : '';
+                    $bio = isset($_POST['bio']) ? sanitize($_POST['bio']) : '';
+                    $facebook_url = isset($_POST['facebook_url']) ? sanitize($_POST['facebook_url']) : '';
+                    $display_order = isset($_POST['display_order']) ? (int)$_POST['display_order'] : 0;
+                    
+                    // Get current photo
+                    $current = $conn->query("SELECT photo_path FROM instructors WHERE user_id = $id");
+                    $photo_path = $current->num_rows > 0 ? $current->fetch_assoc()['photo_path'] : '';
+                    
+                    // Handle new photo upload
+                    if (!empty($_FILES['photo']['name'])) {
+                        // Delete old photo
+                        if (!empty($photo_path) && file_exists($photo_path)) {
+                            deleteFile($photo_path);
+                        }
+                        
+                        $upload = uploadFile($_FILES['photo'], UPLOAD_DIR . 'instructors/', ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+                        if ($upload['success']) {
+                            $photo_path = 'assets/uploads/instructors/' . $upload['filename'];
+                        } else {
+                            throw new Exception($upload['message']);
+                        }
+                    }
+                    
+                    // Check if instructor exists
+                    $check = $conn->query("SELECT id FROM instructors WHERE user_id = $id");
+                    if ($check->num_rows > 0) {
+                        // Update existing
+                        $stmt = $conn->prepare("UPDATE instructors SET name=?, photo_path=?, khan_level=?, title=?, location=?, specialization=?, bio=?, facebook_url=?, email=?, phone=?, display_order=?, status=? WHERE user_id=?");
+                        $stmt->bind_param("sssssssssisi", $name, $photo_path, $khan_level, $title, $location, $specialization, $bio, $facebook_url, $email, $phone, $display_order, $status, $id);
+                    } else {
+                        // Create new
+                        $stmt = $conn->prepare("INSERT INTO instructors (user_id, name, photo_path, khan_level, title, location, specialization, bio, facebook_url, email, phone, display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("issssssssssis", $id, $name, $photo_path, $khan_level, $title, $location, $specialization, $bio, $facebook_url, $email, $phone, $display_order, $status);
+                    }
+                    
+                    if (!$stmt->execute()) {
+                        throw new Exception('Failed to update instructor profile');
+                    }
+                    $stmt->close();
+                    
+                    // Delete member profile if exists (role changed from member to instructor)
+                    $conn->query("DELETE FROM khan_members WHERE user_id = $id");
+                }
+                
+                else {
+                    // If role is admin, remove any instructor or member profiles
+                    $result = $conn->query("SELECT photo_path FROM instructors WHERE user_id = $id");
+                    if ($instructor = $result->fetch_assoc()) {
+                        if (!empty($instructor['photo_path']) && file_exists($instructor['photo_path'])) {
+                            deleteFile($instructor['photo_path']);
+                        }
+                    }
+                    $conn->query("DELETE FROM instructors WHERE user_id = $id");
+                    $conn->query("DELETE FROM khan_members WHERE user_id = $id");
+                }
+                
+                $conn->commit();
+                $success = 'User updated successfully!';
+                
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error = $e->getMessage();
+            }
+        }
+    }
+    
+    elseif (isset($_POST['delete_user'])) {
+        $id = (int)$_POST['id'];
+        
+        // Prevent deleting yourself
+        if ($id == $_SESSION['user_id']) {
+            $error = 'You cannot delete your own account';
+        } else {
+            $conn->begin_transaction();
+            
+            try {
+                // Delete instructor photo if exists
+                $result = $conn->query("SELECT photo_path FROM instructors WHERE user_id = $id");
+                if ($instructor = $result->fetch_assoc()) {
+                    if (!empty($instructor['photo_path']) && file_exists($instructor['photo_path'])) {
+                        deleteFile($instructor['photo_path']);
+                    }
+                }
+                
+                // Delete related records
+                $conn->query("DELETE FROM instructors WHERE user_id = $id");
+                $conn->query("DELETE FROM khan_members WHERE user_id = $id");
+                
+                // Delete user
+                if (!$conn->query("DELETE FROM users WHERE id = $id")) {
+                    throw new Exception('Failed to delete user');
+                }
+                
+                $conn->commit();
+                $success = 'User deleted successfully!';
+                
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error = $e->getMessage();
+            }
+        }
+    }
+}
+
+// Get all users with their role-specific data
+$users = $conn->query("
+    SELECT 
+        u.*,
+        i.khan_level as instructor_khan_level,
+        i.title as instructor_title,
+        i.photo_path as instructor_photo,
+        km.current_khan_level,
+        km.khan_color
+    FROM users u
+    LEFT JOIN instructors i ON u.id = i.user_id
+    LEFT JOIN khan_members km ON u.id = km.user_id
+    ORDER BY u.created_at DESC
+");
+
+// Check for query errors
+if (!$users) {
+    $error = "Database error: " . $conn->error;
+}
+
+// Get instructors for dropdown
+$instructors = $conn->query("SELECT id, name FROM instructors WHERE status = 'active' ORDER BY name");
+
+if (!$instructors) {
+    $error = "Database error loading instructors: " . $conn->error;
+}
+
+include 'includes/admin_header.php';
+?>
+
+<?php if ($success): ?>
+    <div class="alert alert-success"><?php echo $success; ?></div>
+<?php endif; ?>
+
+<?php if ($error): ?>
+    <div class="alert alert-error"><?php echo $error; ?></div>
+<?php endif; ?>
+
+<div class="admin-section">
+    <div class="section-header">
+        <h2><i class="fas fa-users-cog"></i> Centralized User Management</h2>
+        <button class="btn btn-primary" onclick="openAddModal()">
+            <i class="fas fa-plus-circle"></i> Add New User
+        </button>
+    </div>
+    
+    <div class="info-box" style="background: #e3f2fd; border-left: 4px solid #1976d2; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
+        <strong><i class="fas fa-info-circle"></i> Tip:</strong> Select a role when creating a user to automatically show the relevant form fields. 
+        This creates both the user account and their role-specific profile in one step.
+    </div>
+    
+    <div class="filters-row" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap;">
+        <div class="search-box" style="flex: 1; min-width: 250px;">
+            <input type="text" placeholder="🔍 Search users..." id="searchInput" style="width: 100%;">
+        </div>
+        <select id="roleFilter" class="form-select" style="width: 180px;">
+            <option value="">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="instructor">Instructor</option>
+            <option value="member">Member</option>
+        </select>
+        <select id="statusFilter" class="form-select" style="width: 180px;">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+        </select>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>Serial / Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Role Details</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ($users && $users->num_rows > 0): ?>
+                    <?php while ($user = $users->fetch_assoc()): ?>
+                    <tr data-role="<?php echo $user['role']; ?>" data-status="<?php echo $user['status']; ?>">
+                        <td>
+                            <?php if ($user['role'] === 'instructor' && !empty($user['instructor_photo'])): ?>
+                                <img src="<?php echo SITE_URL . '/' . $user['instructor_photo']; ?>" alt="Photo" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
+                            <?php else: ?>
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; color: white; font-size: 1.2rem;">
+                                    <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                </div>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <strong style="display: block;"><?php echo htmlspecialchars($user['name']); ?></strong>
+                            <small style="color: #666;"><?php echo htmlspecialchars($user['serial_number']); ?></small>
+                        </td>
+                        <td><small><?php echo htmlspecialchars($user['email']); ?></small></td>
+                        <td><small><?php echo htmlspecialchars($user['phone'] ?: 'N/A'); ?></small></td>
+                        <td>
+                            <span class="badge" style="background: 
+                                <?php echo $user['role'] === 'admin' ? '#1976d2' : ($user['role'] === 'instructor' ? '#f57c00' : '#388e3c'); ?>; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">
+                                <?php echo ucfirst($user['role']); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php if ($user['role'] === 'instructor'): ?>
+                                <small><strong style="color: #f57c00;"><?php echo htmlspecialchars($user['instructor_khan_level'] ?? 'N/A'); ?></strong></small><br>
+                                <small style="color: #666;"><?php echo htmlspecialchars($user['instructor_title'] ?: 'No title'); ?></small>
+                            <?php elseif ($user['role'] === 'member'): ?>
+                                <small><strong style="color: #388e3c;">Khan <?php echo $user['current_khan_level'] ?? '1'; ?></strong></small><br>
+                                <small style="color: #666;"><?php echo htmlspecialchars($user['khan_color'] ?: 'No color'); ?></small>
+                            <?php else: ?>
+                                <small class="text-muted">-</small>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span class="badge badge-<?php echo $user['status']; ?>" style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">
+                                <?php echo ucfirst($user['status']); ?>
+                            </span>
+                        </td>
+                        <td><small><?php echo formatDate($user['created_at']); ?></small></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-primary" onclick="editUser(<?php echo $user['id']; ?>)" title="Edit User">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user and all associated data?');">
+                                    <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
+                                    <button type="submit" name="delete_user" class="btn btn-sm btn-danger" title="Delete User">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 3rem;">
+                            <div style="color: #999;">
+                                <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                                <h3 style="margin: 0 0 0.5rem 0; color: #666;">No Users Found</h3>
+                                <p style="margin: 0;">Click "Add New User" to create your first user.</p>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeAddModal()">&times;</span>
+        <h2><i class="fas fa-user-plus"></i> Add New User</h2>
+        <form method="POST" enctype="multipart/form-data" id="addForm">
+            <!-- Basic User Information -->
+            <div class="form-section">
+                <h3 style="margin-bottom: 1rem; color: #1976d2; border-bottom: 2px solid #1976d2; padding-bottom: 0.5rem;">
+                    <i class="fas fa-user-circle"></i> Basic Information
+                </h3>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" name="name" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" name="email" class="form-input" required>
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" name="phone" class="form-input" placeholder="09XX XXX XXXX">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Password *</label>
+                        <input type="password" name="password" class="form-input" required minlength="6">
+                        <small style="color: #666;">Minimum 6 characters</small>
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Role * <i class="fas fa-info-circle" title="Select a role to show additional fields"></i></label>
+                        <select name="role" id="add_role" class="form-select" required onchange="toggleRoleFields('add')">
+                            <option value="">-- Select Role --</option>
+                            <option value="admin">Admin</option>
+                            <option value="instructor">Instructor</option>
+                            <option value="member">Member</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select name="status" class="form-select" required>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Instructor Fields -->
+            <div id="add_instructor_fields" class="form-section" style="display: none;">
+                <h3 style="margin: 1.5rem 0 1rem; color: #f57c00; border-bottom: 2px solid #f57c00; padding-bottom: 0.5rem;">
+                    <i class="fas fa-chalkboard-teacher"></i> Instructor Information
+                </h3>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Khan Level *</label>
+                        <input type="text" name="khan_level" class="form-input" placeholder="e.g., Khan 11 (Kru)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Title/Position</label>
+                        <input type="text" name="title" class="form-input" placeholder="e.g., Head Instructor, Founder">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Profile Photo</label>
+                    <input type="file" name="photo" class="form-input" accept="image/*">
+                    <small style="color: #666;">Recommended: Square image, min 200x200px</small>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Location</label>
+                        <input type="text" name="location" class="form-input" placeholder="e.g., Quezon City">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Display Order</label>
+                        <input type="number" name="display_order" class="form-input" value="0">
+                        <small style="color: #666;">Lower numbers appear first</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Specialization</label>
+                    <textarea name="specialization" class="form-textarea" rows="2" placeholder="Areas of expertise..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Biography</label>
+                    <textarea name="bio" class="form-textarea" rows="3" placeholder="Brief biography..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Facebook URL</label>
+                    <input type="url" name="facebook_url" class="form-input" placeholder="https://facebook.com/...">
+                </div>
+            </div>
+            
+            <!-- Member Fields -->
+            <div id="add_member_fields" class="form-section" style="display: none;">
+                <h3 style="margin: 1.5rem 0 1rem; color: #388e3c; border-bottom: 2px solid #388e3c; padding-bottom: 0.5rem;">
+                    <i class="fas fa-user-graduate"></i> Member Information
+                </h3>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Current Khan Level *</label>
+                        <input type="number" name="current_khan_level" class="form-input" min="1" max="16" value="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Khan Color/Band</label>
+                        <input type="text" name="khan_color" class="form-input" placeholder="e.g., White, Yellow, Green">
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Date Joined *</label>
+                        <input type="date" name="date_joined" class="form-input" value="<?php echo date('Y-m-d'); ?>">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Date Promoted (Optional)</label>
+                        <input type="date" name="date_promoted" class="form-input">
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Assigned Instructor/Kru</label>
+                        <select name="instructor_id" class="form-select">
+                            <option value="">-- No Instructor --</option>
+                            <?php 
+                            $instructors->data_seek(0);
+                            while ($instructor = $instructors->fetch_assoc()): 
+                            ?>
+                                <option value="<?php echo $instructor['id']; ?>">
+                                    <?php echo htmlspecialchars($instructor['name']); ?>
+                                </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Training Location</label>
+                        <input type="text" name="training_location" class="form-input" placeholder="e.g., Quezon City">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea name="member_notes" class="form-textarea" rows="3" placeholder="Additional notes about the member..."></textarea>
+                </div>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 2rem; border-top: 1px solid #ddd; padding-top: 1rem;">
+                <button type="submit" name="add_user" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create User
+                </button>
+                <button type="button" class="btn btn-outline" onclick="closeAddModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeEditModal()">&times;</span>
+        <h2><i class="fas fa-user-edit"></i> Edit User</h2>
+        <form method="POST" enctype="multipart/form-data" id="editForm">
+            <input type="hidden" name="id" id="edit_id">
+            
+            <!-- Loading indicator -->
+            <div id="edit_loading" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #1976d2;"></i>
+                <p style="margin-top: 1rem;">Loading user data...</p>
+            </div>
+            
+            <!-- Form content (will be populated by AJAX) -->
+            <div id="edit_content" style="display: none;"></div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 95%;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: slideDown 0.3s;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.modal-close:hover {
+    color: #000;
+}
+
+.form-section {
+    margin-bottom: 1.5rem;
+}
+
+.filters-row select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.badge-active {
+    background: #4caf50;
+    color: white;
+}
+
+.badge-inactive {
+    background: #757575;
+    color: white;
+}
+
+.badge-suspended {
+    background: #f44336;
+    color: white;
+}
+
+.action-buttons .btn {
+    margin-right: 0.3rem;
+}
+</style>
+
+<script>
+function openAddModal() {
+    document.getElementById('addModal').style.display = 'block';
+    document.getElementById('addForm').reset();
+    toggleRoleFields('add');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function toggleRoleFields(prefix) {
+    const role = document.getElementById(prefix + '_role').value;
+    const instructorFields = document.getElementById(prefix + '_instructor_fields');
+    const memberFields = document.getElementById(prefix + '_member_fields');
+    
+    if (role === 'instructor') {
+        instructorFields.style.display = 'block';
+        memberFields.style.display = 'none';
+        // Make instructor fields required
+        const khanLevelInput = instructorFields.querySelector('input[name="khan_level"]');
+        if (khanLevelInput) khanLevelInput.setAttribute('required', 'required');
+        // Remove member fields required
+        memberFields.querySelectorAll('[required]').forEach(el => el.removeAttribute('required'));
+    } else if (role === 'member') {
+        instructorFields.style.display = 'none';
+        memberFields.style.display = 'block';
+        // Make member fields required
+        const requiredFields = memberFields.querySelectorAll('input[name="current_khan_level"], input[name="date_joined"]');
+        requiredFields.forEach(el => el.setAttribute('required', 'required'));
+        // Remove instructor fields required
+        instructorFields.querySelectorAll('[required]').forEach(el => el.removeAttribute('required'));
+    } else {
+        instructorFields.style.display = 'none';
+        memberFields.style.display = 'none';
+        // Remove all role-specific required fields
+        instructorFields.querySelectorAll('[required]').forEach(el => el.removeAttribute('required'));
+        memberFields.querySelectorAll('[required]').forEach(el => el.removeAttribute('required'));
+    }
+}
+
+function editUser(userId) {
+    document.getElementById('editModal').style.display = 'block';
+    document.getElementById('edit_loading').style.display = 'block';
+    document.getElementById('edit_content').style.display = 'none';
+    
+    // Fetch user data via AJAX
+    fetch('ajax/get_user_data.php?id=' + userId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                populateEditForm(data.user);
+            } else {
+                alert('Error loading user data');
+                closeEditModal();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading user data');
+            closeEditModal();
+        });
+}
+
+function populateEditForm(user) {
+    const content = document.getElementById('edit_content');
+    
+    let html = `
+        <!-- Basic User Information -->
+        <div class="form-section">
+            <h3 style="margin-bottom: 1rem; color: #1976d2; border-bottom: 2px solid #1976d2; padding-bottom: 0.5rem;">
+                <i class="fas fa-user-circle"></i> Basic Information
+            </h3>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" name="name" id="edit_name" class="form-input" value="${escapeHtml(user.name)}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Email Address *</label>
+                    <input type="email" name="email" id="edit_email" class="form-input" value="${escapeHtml(user.email)}" required>
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" name="phone" id="edit_phone" class="form-input" value="${escapeHtml(user.phone || '')}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">New Password (leave empty to keep current)</label>
+                    <input type="password" name="password" class="form-input" minlength="6">
+                    <small style="color: #666;">Only fill if changing password</small>
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Role *</label>
+                    <select name="role" id="edit_role" class="form-select" required onchange="toggleRoleFields('edit')">
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        <option value="instructor" ${user.role === 'instructor' ? 'selected' : ''}>Instructor</option>
+                        <option value="member" ${user.role === 'member' ? 'selected' : ''}>Member</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status *</label>
+                    <select name="status" id="edit_status" class="form-select" required>
+                        <option value="active" ${user.status === 'active' ? 'selected' : ''}>Active</option>
+                        <option value="inactive" ${user.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                        <option value="suspended" ${user.status === 'suspended' ? 'selected' : ''}>Suspended</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Instructor Fields -->
+        <div id="edit_instructor_fields" class="form-section" style="display: ${user.role === 'instructor' ? 'block' : 'none'};">
+            <h3 style="margin: 1.5rem 0 1rem; color: #f57c00; border-bottom: 2px solid #f57c00; padding-bottom: 0.5rem;">
+                <i class="fas fa-chalkboard-teacher"></i> Instructor Information
+            </h3>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Khan Level *</label>
+                    <input type="text" name="khan_level" class="form-input" value="${escapeHtml(user.instructor_data?.khan_level || '')}" ${user.role === 'instructor' ? 'required' : ''}>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Title/Position</label>
+                    <input type="text" name="title" class="form-input" value="${escapeHtml(user.instructor_data?.title || '')}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Photo (leave empty to keep current)</label>
+                <input type="file" name="photo" class="form-input" accept="image/*">
+                ${user.instructor_data?.photo_path ? `
+                    <div style="margin-top: 10px;">
+                        <strong>Current photo:</strong><br>
+                        <img src="<?php echo SITE_URL; ?>/${user.instructor_data.photo_path}" style="max-width: 150px; margin-top: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="location" class="form-input" value="${escapeHtml(user.instructor_data?.location || '')}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Display Order</label>
+                    <input type="number" name="display_order" class="form-input" value="${user.instructor_data?.display_order || 0}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Specialization</label>
+                <textarea name="specialization" class="form-textarea" rows="2">${escapeHtml(user.instructor_data?.specialization || '')}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Biography</label>
+                <textarea name="bio" class="form-textarea" rows="3">${escapeHtml(user.instructor_data?.bio || '')}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Facebook URL</label>
+                <input type="url" name="facebook_url" class="form-input" value="${escapeHtml(user.instructor_data?.facebook_url || '')}">
+            </div>
+        </div>
+        
+        <!-- Member Fields -->
+        <div id="edit_member_fields" class="form-section" style="display: ${user.role === 'member' ? 'block' : 'none'};">
+            <h3 style="margin: 1.5rem 0 1rem; color: #388e3c; border-bottom: 2px solid #388e3c; padding-bottom: 0.5rem;">
+                <i class="fas fa-user-graduate"></i> Member Information
+            </h3>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Current Khan Level *</label>
+                    <input type="number" name="current_khan_level" class="form-input" min="1" max="16" value="${user.member_data?.current_khan_level || 1}" ${user.role === 'member' ? 'required' : ''}>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Khan Color/Band</label>
+                    <input type="text" name="khan_color" class="form-input" value="${escapeHtml(user.member_data?.khan_color || '')}">
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Date Joined *</label>
+                    <input type="date" name="date_joined" class="form-input" value="${user.member_data?.date_joined || ''}" ${user.role === 'member' ? 'required' : ''}>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Date Promoted (Optional)</label>
+                    <input type="date" name="date_promoted" class="form-input" value="${user.member_data?.date_promoted || ''}">
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Assigned Instructor/Kru</label>
+                    <select name="instructor_id" class="form-select">
+                        <option value="">-- No Instructor --</option>
+                        ${user.instructors_list.map(inst => `
+                            <option value="${inst.id}" ${user.member_data?.instructor_id == inst.id ? 'selected' : ''}>
+                                ${escapeHtml(inst.name)}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Training Location</label>
+                    <input type="text" name="training_location" class="form-input" value="${escapeHtml(user.member_data?.training_location || '')}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea name="member_notes" class="form-textarea" rows="3">${escapeHtml(user.member_data?.notes || '')}</textarea>
+            </div>
+        </div>
+        
+        <div class="action-buttons" style="margin-top: 2rem; border-top: 1px solid #ddd; padding-top: 1rem;">
+            <button type="submit" name="edit_user" class="btn btn-primary">
+                <i class="fas fa-save"></i> Update User
+            </button>
+            <button type="button" class="btn btn-outline" onclick="closeEditModal()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    document.getElementById('edit_loading').style.display = 'none';
+    content.style.display = 'block';
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', filterTable);
+document.getElementById('roleFilter').addEventListener('change', filterTable);
+document.getElementById('statusFilter').addEventListener('change', filterTable);
+
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const rows = document.querySelectorAll('.data-table tbody tr');
+    
+    rows.forEach(function(row) {
+        const text = row.textContent.toLowerCase();
+        const rowRole = row.getAttribute('data-role');
+        const rowStatus = row.getAttribute('data-status');
+        
+        const matchesSearch = text.includes(searchTerm);
+        const matchesRole = !roleFilter || rowRole === roleFilter;
+        const matchesStatus = !statusFilter || rowStatus === statusFilter;
+        
+        row.style.display = (matchesSearch && matchesRole && matchesStatus) ? '' : 'none';
+    });
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const addModal = document.getElementById('addModal');
+    const editModal = document.getElementById('editModal');
+    if (event.target == addModal) {
+        closeAddModal();
+    }
+    if (event.target == editModal) {
+        closeEditModal();
+    }
+}
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAddModal();
+        closeEditModal();
+    }
+});
+</script>
+
+<?php include 'includes/admin_footer.php'; ?>

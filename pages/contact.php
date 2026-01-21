@@ -8,7 +8,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
-    $phone = trim($_POST['phone'] ?? ''); // Added null coalescing for safety
+    $phone = trim($_POST['phone'] ?? '');
     $subject = trim($_POST['subject']);
     $message = trim($_POST['message']);
 
@@ -45,7 +45,7 @@ include '../includes/header.php';
     /* Core Layout */
     .contact-container {
         max-width: 1100px;
-        margin: -60px auto 60px;
+        margin: -60px auto 40px;
         padding: 0 20px;
         position: relative;
         z-index: 10;
@@ -55,18 +55,36 @@ include '../includes/header.php';
         display: grid;
         grid-template-columns: 1fr 1.5fr;
         gap: 2rem;
+        margin-bottom: 3rem;
     }
 
-    .info-card, .form-card {
+    .info-card,
+    .form-card,
+    .map-card {
         background: #fff;
         padding: 40px;
         border-radius: 16px;
         box-shadow: var(--card-shadow);
+        overflow: hidden;
     }
 
     .info-card {
         background-color: #1a1a1a;
         color: #fff;
+    }
+
+    /* Map Styles */
+    .map-card {
+        padding: 10px;
+        /* Minimal padding for the map frame */
+        margin-bottom: 60px;
+    }
+
+    .map-card iframe {
+        width: 100%;
+        height: 450px;
+        border-radius: 12px;
+        display: block;
     }
 
     /* Form Styles */
@@ -86,7 +104,7 @@ include '../includes/header.php';
     .icon-box {
         width: 45px;
         height: 45px;
-        flex-shrink: 0; /* Prevents icon from squishing */
+        flex-shrink: 0;
         background: rgba(255, 255, 255, 0.1);
         border-radius: 10px;
         display: flex;
@@ -95,8 +113,10 @@ include '../includes/header.php';
         font-size: 1.2rem;
     }
 
-    .form-group { margin-bottom: 1.5rem; }
-    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
     .form-label {
         display: block;
         font-weight: 600;
@@ -105,17 +125,19 @@ include '../includes/header.php';
         font-size: 0.9rem;
     }
 
-    .form-input, .form-textarea {
+    .form-input,
+    .form-textarea {
         width: 100%;
         padding: 12px 16px;
         border: 2px solid #f0f0f0;
         border-radius: 8px;
         transition: all 0.3s ease;
         background: #fcfcfc;
-        box-sizing: border-box; /* Ensures padding doesn't break width */
+        box-sizing: border-box;
     }
 
-    .form-input:focus, .form-textarea:focus {
+    .form-input:focus,
+    .form-textarea:focus {
         border-color: var(--primary-red);
         background: #fff;
         outline: none;
@@ -143,28 +165,28 @@ include '../includes/header.php';
 
     /* Responsive Breakpoints */
     @media (max-width: 992px) {
-        .contact-grid { 
-            grid-template-columns: 1fr; 
+        .contact-grid {
+            grid-template-columns: 1fr;
         }
-        .contact-container { 
-            margin-top: 2rem; 
-            margin-bottom: 3rem;
-        }
-        .section-header {
-            min-height: 300px !important;
-            padding: 4rem 1rem !important;
+
+        .contact-container {
+            margin-top: 2rem;
         }
     }
 
     @media (max-width: 600px) {
         .form-row {
-            grid-template-columns: 1fr; /* Stack Name and Email on mobile */
+            grid-template-columns: 1fr;
         }
-        .info-card, .form-card {
-            padding: 25px; /* Reduce padding for more screen space */
+
+        .info-card,
+        .form-card,
+        .map-card {
+            padding: 20px;
         }
-        .section-header h1 {
-            font-size: 2.2rem !important;
+
+        .map-card iframe {
+            height: 300px;
         }
     }
 </style>
@@ -184,10 +206,9 @@ include '../includes/header.php';
 
     <div class="contact-container">
         <div class="contact-grid">
-            
             <div class="info-card">
                 <h2 style="margin-bottom: 2rem; font-size: 1.8rem;">Contact Info</h2>
-                
+
                 <div class="contact-item">
                     <div class="icon-box">📍</div>
                     <div>
@@ -213,9 +234,12 @@ include '../includes/header.php';
                 </div>
 
                 <div style="margin-top: 3rem;">
-                    <h4 style="color: #aaa; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 1rem;">Social Media</h4>
-                    <a href="https://web.facebook.com/OrientalMuayboranAcademy" style="text-decoration: none; color: white; display: inline-flex; align-items: center; gap: 8px;">
-                        <span style="background: #3b5998; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">f</span>
+                    <h4 style="color: #aaa; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 1rem;">Social
+                        Media</h4>
+                    <a href="https://web.facebook.com/OrientalMuayboranAcademy"
+                        style="text-decoration: none; color: white; display: inline-flex; align-items: center; gap: 8px;">
+                        <span
+                            style="background: #3b5998; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">f</span>
                         Facebook Page
                     </a>
                 </div>
@@ -223,13 +247,15 @@ include '../includes/header.php';
 
             <div class="form-card">
                 <?php if ($error): ?>
-                    <div style="background: #fff5f5; border-left: 4px solid #ff4d4d; color: #cc0000; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+                    <div
+                        style="background: #fff5f5; border-left: 4px solid #ff4d4d; color: #cc0000; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
                         <strong>Error:</strong> <?php echo htmlspecialchars($error); ?>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($success): ?>
-                    <div style="background: #f0fff4; border-left: 4px solid #38a169; color: #276749; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+                    <div
+                        style="background: #f0fff4; border-left: 4px solid #38a169; color: #276749; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
                         <strong>Success!</strong> <?php echo htmlspecialchars($success); ?>
                     </div>
                 <?php endif; ?>
@@ -238,22 +264,26 @@ include '../includes/header.php';
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Full Name</label>
-                            <input type="text" name="name" class="form-input" placeholder="Juan Dela Cruz" required value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>">
+                            <input type="text" name="name" class="form-input" placeholder="Juan Dela Cruz" required
+                                value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Email Address</label>
-                            <input type="email" name="email" class="form-input" placeholder="juan@example.com" required value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
+                            <input type="email" name="email" class="form-input" placeholder="juan@example.com" required
+                                value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Subject</label>
-                        <input type="text" name="subject" class="form-input" placeholder="How can we help?" required value="<?php echo isset($_POST['subject']) ? htmlspecialchars($_POST['subject']) : ''; ?>">
+                        <input type="text" name="subject" class="form-input" placeholder="How can we help?" required
+                            value="<?php echo isset($_POST['subject']) ? htmlspecialchars($_POST['subject']) : ''; ?>">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Message</label>
-                        <textarea name="message" class="form-textarea" rows="5" placeholder="Your message here..." required><?php echo isset($_POST['message']) ? htmlspecialchars($_POST['message']) : ''; ?></textarea>
+                        <textarea name="message" class="form-textarea" rows="5" placeholder="Your message here..."
+                            required><?php echo isset($_POST['message']) ? htmlspecialchars($_POST['message']) : ''; ?></textarea>
                     </div>
 
                     <button type="submit" name="send_message" class="submit-btn">
@@ -261,7 +291,13 @@ include '../includes/header.php';
                     </button>
                 </form>
             </div>
+        </div>
 
+        <div class="map-card">
+            <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d964.8578717303418!2d121.0590624!3d14.688174199999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b163299740e3%3A0x8364f859c7f14155!2sOriental%20Muay%20Boran%20Academy%20(updated)!5e0!3m2!1sen!2sph!4v1768915162638!5m2!1sen!2sph"
+                width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
     </div>
 </section>

@@ -13,13 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user_id = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
         $name = sanitize($_POST['name']);
         $khan_level = sanitize($_POST['khan_level']);
-        $title = sanitize($_POST['title']);
-        $location = sanitize($_POST['location']);
-        $specialization = sanitize($_POST['specialization']);
-        $bio = sanitize($_POST['bio']);
-        $facebook_url = sanitize($_POST['facebook_url']);
-        $email = sanitize($_POST['email']);
-        $phone = sanitize($_POST['phone']);
+        $title = isset($_POST['title']) ? sanitize($_POST['title']) : '';
+        $location = isset($_POST['location']) ? sanitize($_POST['location']) : '';
+        $specialization = isset($_POST['specialization']) ? sanitize($_POST['specialization']) : '';
+        $bio = isset($_POST['bio']) ? sanitize($_POST['bio']) : '';
+        $facebook_url = isset($_POST['facebook_url']) ? sanitize($_POST['facebook_url']) : '';
+        $email = isset($_POST['email']) ? sanitize($_POST['email']) : '';
+        $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
         $display_order = (int)$_POST['display_order'];
         $status = $_POST['status'];
         
@@ -52,13 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user_id = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
         $name = sanitize($_POST['name']);
         $khan_level = sanitize($_POST['khan_level']);
-        $title = sanitize($_POST['title']);
-        $location = sanitize($_POST['location']);
-        $specialization = sanitize($_POST['specialization']);
-        $bio = sanitize($_POST['bio']);
-        $facebook_url = sanitize($_POST['facebook_url']);
-        $email = sanitize($_POST['email']);
-        $phone = sanitize($_POST['phone']);
+        $title = isset($_POST['title']) ? sanitize($_POST['title']) : '';
+        $location = isset($_POST['location']) ? sanitize($_POST['location']) : '';
+        $specialization = isset($_POST['specialization']) ? sanitize($_POST['specialization']) : '';
+        $bio = isset($_POST['bio']) ? sanitize($_POST['bio']) : '';
+        $facebook_url = isset($_POST['facebook_url']) ? sanitize($_POST['facebook_url']) : '';
+        $email = isset($_POST['email']) ? sanitize($_POST['email']) : '';
+        $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
         $display_order = (int)$_POST['display_order'];
         $status = $_POST['status'];
         
@@ -115,8 +115,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get all instructors
-$instructors = $conn->query("SELECT * FROM instructors ORDER BY display_order ASC, name ASC");
+// Get all instructors with user info
+$instructors = $conn->query("
+    SELECT i.*, u.serial_number, u.email as user_email 
+    FROM instructors i 
+    LEFT JOIN users u ON i.user_id = u.id 
+    ORDER BY i.display_order ASC, i.name ASC
+");
 
 // Get users for dropdown
 $available_users = $conn->query("SELECT id, name, email FROM users WHERE role IN ('instructor', 'admin') ORDER BY name");
@@ -133,15 +138,36 @@ include 'includes/admin_header.php';
 <?php endif; ?>
 
 <div class="admin-section">
+    <!-- Notice about centralized management -->
+    <div class="info-notice" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; margin-bottom: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="font-size: 3rem;">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div style="flex: 1;">
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1.3rem;">
+                    <i class="fas fa-sparkles"></i> New! Centralized User Management
+                </h3>
+                <p style="margin: 0; opacity: 0.95; line-height: 1.6;">
+                    You can now create instructors with their user accounts in one place! 
+                    The <strong>Centralized User Management</strong> page lets you create a user and their instructor profile simultaneously.
+                </p>
+                <a href="manage_users_centralized.php" class="btn" style="background: white; color: #667eea; margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                    <i class="fas fa-arrow-right"></i> Go to Centralized Management
+                </a>
+            </div>
+        </div>
+    </div>
+
     <div class="section-header">
-        <h2>Instructors & Kru Management</h2>
+        <h2><i class="fas fa-chalkboard-teacher"></i> Instructors & Kru Management</h2>
         <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
-            Add New Instructor
+            <i class="fas fa-plus-circle"></i> Add New Instructor
         </button>
     </div>
     
     <div class="search-box">
-        <input type="text" placeholder="Search instructors..." id="searchInput">
+        <input type="text" placeholder="🔍 Search instructors..." id="searchInput">
     </div>
     
     <div class="table-responsive">
@@ -150,6 +176,7 @@ include 'includes/admin_header.php';
                 <tr>
                     <th>Photo</th>
                     <th>Name</th>
+                    <th>User Account</th>
                     <th>Khan Level</th>
                     <th>Title/Position</th>
                     <th>Location</th>
@@ -164,33 +191,51 @@ include 'includes/admin_header.php';
                 <tr>
                     <td>
                         <?php if (!empty($instructor['photo_path'])): ?>
-                            <img src="<?php echo SITE_URL . '/' . $instructor['photo_path']; ?>" alt="Photo" style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%;">
+                            <img src="<?php echo SITE_URL . '/' . $instructor['photo_path']; ?>" alt="Photo" style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
                         <?php else: ?>
-                            <div style="width: 60px; height: 60px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">
+                            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%); display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; color: white; font-size: 1.5rem;">
                                 <?php echo strtoupper(substr($instructor['name'], 0, 1)); ?>
                             </div>
                         <?php endif; ?>
                     </td>
                     <td><strong><?php echo htmlspecialchars($instructor['name']); ?></strong></td>
-                    <td><strong><?php echo htmlspecialchars($instructor['khan_level']); ?></strong></td>
+                    <td>
+                        <?php if ($instructor['user_id']): ?>
+                            <span style="display: inline-block; background: #e3f2fd; color: #1976d2; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">
+                                <i class="fas fa-user"></i> <?php echo htmlspecialchars($instructor['serial_number']); ?>
+                            </span><br>
+                            <small style="color: #666;"><?php echo htmlspecialchars($instructor['user_email']); ?></small>
+                        <?php else: ?>
+                            <span style="color: #999; font-style: italic;">No account</span>
+                        <?php endif; ?>
+                    </td>
+                    <td><strong style="color: #f57c00;"><?php echo htmlspecialchars($instructor['khan_level']); ?></strong></td>
                     <td><?php echo htmlspecialchars($instructor['title'] ?: 'N/A'); ?></td>
                     <td><?php echo htmlspecialchars($instructor['location'] ?: 'N/A'); ?></td>
                     <td>
                         <?php if ($instructor['email']): ?>
-                            <small><?php echo htmlspecialchars($instructor['email']); ?></small><br>
+                            <small><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($instructor['email']); ?></small><br>
                         <?php endif; ?>
                         <?php if ($instructor['phone']): ?>
-                            <small><?php echo htmlspecialchars($instructor['phone']); ?></small>
+                            <small><i class="fas fa-phone"></i> <?php echo htmlspecialchars($instructor['phone']); ?></small>
                         <?php endif; ?>
                     </td>
                     <td><?php echo $instructor['display_order']; ?></td>
-                    <td><span class="badge badge-<?php echo $instructor['status']; ?>"><?php echo ucfirst($instructor['status']); ?></span></td>
+                    <td>
+                        <span class="badge badge-<?php echo $instructor['status']; ?>" style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">
+                            <?php echo ucfirst($instructor['status']); ?>
+                        </span>
+                    </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary" onclick="editInstructor(<?php echo htmlspecialchars(json_encode($instructor)); ?>)">Edit</button>
+                            <button class="btn btn-sm btn-primary" onclick="editInstructor(<?php echo htmlspecialchars(json_encode($instructor)); ?>)" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this instructor?');">
                                 <input type="hidden" name="id" value="<?php echo $instructor['id']; ?>">
-                                <button type="submit" name="delete_instructor" class="btn btn-sm btn-danger">Delete</button>
+                                <button type="submit" name="delete_instructor" class="btn btn-sm btn-danger" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </form>
                         </div>
                     </td>
@@ -205,7 +250,13 @@ include 'includes/admin_header.php';
 <div id="addModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="document.getElementById('addModal').style.display='none'">&times;</span>
-        <h2>Add New Instructor</h2>
+        <h2><i class="fas fa-user-plus"></i> Add New Instructor</h2>
+        
+        <div class="alert" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
+            <strong><i class="fas fa-lightbulb"></i> Tip:</strong> To create an instructor with a user account, use the 
+            <a href="manage_users_centralized.php" style="color: #1976d2; font-weight: bold;">Centralized User Management</a> page instead.
+        </div>
+        
         <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label">Link to User Account (Optional)</label>
@@ -237,6 +288,7 @@ include 'includes/admin_header.php';
             <div class="form-group">
                 <label class="form-label">Photo</label>
                 <input type="file" name="photo" class="form-input" accept="image/*">
+                <small style="color: #666;">Recommended: Square image, min 200x200px</small>
             </div>
             
             <div class="form-grid">
@@ -253,12 +305,12 @@ include 'includes/admin_header.php';
             
             <div class="form-group">
                 <label class="form-label">Specialization</label>
-                <textarea name="specialization" class="form-textarea" placeholder="Areas of expertise..."></textarea>
+                <textarea name="specialization" class="form-textarea" rows="2" placeholder="Areas of expertise..."></textarea>
             </div>
             
             <div class="form-group">
                 <label class="form-label">Biography</label>
-                <textarea name="bio" class="form-textarea" placeholder="Brief biography..."></textarea>
+                <textarea name="bio" class="form-textarea" rows="3" placeholder="Brief biography..."></textarea>
             </div>
             
             <div class="form-grid">
@@ -276,12 +328,13 @@ include 'includes/admin_header.php';
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Facebook URL</label>
-                    <input type="url" name="facebook_url" class="form-input">
+                    <input type="url" name="facebook_url" class="form-input" placeholder="https://facebook.com/...">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Display Order</label>
                     <input type="number" name="display_order" class="form-input" value="0">
+                    <small style="color: #666;">Lower numbers appear first</small>
                 </div>
             </div>
             
@@ -294,8 +347,12 @@ include 'includes/admin_header.php';
             </div>
             
             <div class="action-buttons">
-                <button type="submit" name="add_instructor" class="btn btn-primary">Add Instructor</button>
-                <button type="button" class="btn btn-outline" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+                <button type="submit" name="add_instructor" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Add Instructor
+                </button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('addModal').style.display='none'">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
             </div>
         </form>
     </div>
@@ -305,7 +362,7 @@ include 'includes/admin_header.php';
 <div id="editModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
-        <h2>Edit Instructor</h2>
+        <h2><i class="fas fa-user-edit"></i> Edit Instructor</h2>
         <form method="POST" enctype="multipart/form-data" id="editForm">
             <input type="hidden" name="id" id="edit_id">
             
@@ -356,12 +413,12 @@ include 'includes/admin_header.php';
             
             <div class="form-group">
                 <label class="form-label">Specialization</label>
-                <textarea name="specialization" id="edit_specialization" class="form-textarea"></textarea>
+                <textarea name="specialization" id="edit_specialization" class="form-textarea" rows="2"></textarea>
             </div>
             
             <div class="form-group">
                 <label class="form-label">Biography</label>
-                <textarea name="bio" id="edit_bio" class="form-textarea"></textarea>
+                <textarea name="bio" id="edit_bio" class="form-textarea" rows="3"></textarea>
             </div>
             
             <div class="form-grid">
@@ -397,8 +454,12 @@ include 'includes/admin_header.php';
             </div>
             
             <div class="action-buttons">
-                <button type="submit" name="edit_instructor" class="btn btn-primary">Update Instructor</button>
-                <button type="button" class="btn btn-outline" onclick="document.getElementById('editModal').style.display='none'">Cancel</button>
+                <button type="submit" name="edit_instructor" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Instructor
+                </button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('editModal').style.display='none'">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
             </div>
         </form>
     </div>
@@ -414,7 +475,13 @@ include 'includes/admin_header.php';
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modal-content {
@@ -426,6 +493,19 @@ include 'includes/admin_header.php';
     max-width: 900px;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: slideDown 0.3s;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .modal-close {
@@ -434,10 +514,21 @@ include 'includes/admin_header.php';
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
+    transition: color 0.3s;
 }
 
 .modal-close:hover {
     color: #000;
+}
+
+.badge-active {
+    background: #4caf50;
+    color: white;
+}
+
+.badge-inactive {
+    background: #757575;
+    color: white;
 }
 </style>
 
@@ -459,7 +550,7 @@ function editInstructor(instructor) {
     
     const currentPhoto = document.getElementById('current_photo');
     if (instructor.photo_path) {
-        currentPhoto.innerHTML = '<strong>Current photo:</strong><br><img src="<?php echo SITE_URL; ?>/' + instructor.photo_path + '" style="max-width: 150px; margin-top: 10px; border-radius: 50%;">';
+        currentPhoto.innerHTML = '<strong>Current photo:</strong><br><img src="<?php echo SITE_URL; ?>/' + instructor.photo_path + '" style="max-width: 150px; margin-top: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">';
     } else {
         currentPhoto.innerHTML = '';
     }
@@ -476,6 +567,26 @@ document.getElementById('searchInput').addEventListener('input', function() {
         const text = row.textContent.toLowerCase();
         row.style.display = text.includes(searchTerm) ? '' : 'none';
     });
+});
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const addModal = document.getElementById('addModal');
+    const editModal = document.getElementById('editModal');
+    if (event.target == addModal) {
+        addModal.style.display = 'none';
+    }
+    if (event.target == editModaQl) {
+        editModal.style.display = 'none';
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('addModal').style.display = 'none';
+        document.getElementById('editModal').style.display = 'none';
+    }
 });
 </script>
 

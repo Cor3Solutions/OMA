@@ -24,243 +24,259 @@ if ($result && $result->num_rows > 0) {
     }
 }
 
-// Khan level colors (1-16) with images
+// Khan level colors (1-16) updated to your specific requirements
 $khan_colors = [
-    1 => ['color' => '#FFFFFF', 'text' => '#000000', 'name' => 'White Khan', 'desc' => 'Beginner - Pure potential'],
-    2 => ['color' => '#FFEB3B', 'text' => '#000000', 'name' => 'Yellow Khan', 'desc' => 'First light of knowledge'],
-    3 => ['color' => '#FFA726', 'text' => '#000000', 'name' => 'Orange Khan', 'desc' => 'Growing strength'],
-    4 => ['color' => '#66BB6A', 'text' => '#FFFFFF', 'name' => 'Green Khan', 'desc' => 'Flourishing skills'],
-    5 => ['color' => '#42A5F5', 'text' => '#FFFFFF', 'name' => 'Blue Khan', 'desc' => 'Deep understanding'],
-    6 => ['color' => '#AB47BC', 'text' => '#FFFFFF', 'name' => 'Purple Khan', 'desc' => 'Noble warrior'],
-    7 => ['color' => '#8D6E63', 'text' => '#FFFFFF', 'name' => 'Brown Khan', 'desc' => 'Grounded mastery'],
-    8 => ['color' => '#EF5350', 'text' => '#FFFFFF', 'name' => 'Red Khan', 'desc' => 'Warrior spirit'],
-    9 => ['color' => '#000000', 'text' => '#FFFFFF', 'name' => 'Black Khan', 'desc' => 'Advanced master'],
-    10 => ['color' => '#D32F2F', 'text' => '#FFFFFF', 'name' => 'Red Master', 'desc' => 'Expert instructor'],
-    11 => ['color' => '#C62828', 'text' => '#FFD700', 'name' => 'Red/Gold I', 'desc' => 'Senior master'],
-    12 => ['color' => '#B71C1C', 'text' => '#FFD700', 'name' => 'Red/Gold II', 'desc' => 'Grand master'],
-    13 => ['color' => '#880E4F', 'text' => '#FFD700', 'name' => 'Crimson/Gold', 'desc' => 'Supreme master'],
-    14 => ['color' => '#4A148C', 'text' => '#FFD700', 'name' => 'Purple/Gold', 'desc' => 'Legendary master'],
-    15 => ['color' => '#1A237E', 'text' => '#FFD700', 'name' => 'Navy/Gold', 'desc' => 'Grandmaster'],
-    16 => ['color' => '#000000', 'text' => '#FFD700', 'name' => 'Black/Gold', 'desc' => 'Supreme Grandmaster']
+    1 => ['color' => '#FFFFFF', 'text' => '#000', 'name' => 'White Khan', 'desc' => 'Beginner'],
+    2 => ['color' => '#FFEB3B', 'text' => '#000', 'name' => 'Yellow Khan', 'desc' => 'Novice'],
+    3 => ['color' => 'linear-gradient(135deg, #FFEB3B 50%, #FFFFFF 50%)', 'text' => '#000', 'name' => 'Yellow-White', 'desc' => 'Advanced Novice'],
+    4 => ['color' => '#4CAF50', 'text' => '#FFF', 'name' => 'Green Khan', 'desc' => 'Intermediate'],
+    5 => ['color' => 'linear-gradient(135deg, #4CAF50 50%, #FFFFFF 50%)', 'text' => '#000', 'name' => 'Green-White', 'desc' => 'Advanced Intermediate'],
+    6 => ['color' => '#2196F3', 'text' => '#FFF', 'name' => 'Blue Khan', 'desc' => 'Skilled Practitioner'],
+    7 => ['color' => 'linear-gradient(135deg, #2196F3 50%, #FFFFFF 50%)', 'text' => '#000', 'name' => 'Blue-White', 'desc' => 'Advanced Practitioner'],
+    8 => ['color' => '#795548', 'text' => '#FFF', 'name' => 'Brown Khan', 'desc' => 'Senior Practitioner'],
+    9 => ['color' => 'linear-gradient(135deg, #795548 50%, #FFFFFF 50%)', 'text' => '#000', 'name' => 'Brown-White', 'desc' => 'Advanced Senior'],
+    10 => ['color' => '#D32F2F', 'text' => '#FFF', 'name' => 'Red Khan', 'desc' => 'Instructor Level'],
+    11 => ['color' => 'linear-gradient(135deg, #D32F2F 50%, #FFFFFF 50%)', 'text' => '#000', 'name' => 'Red-White', 'desc' => 'Advanced Instructor'],
+    12 => ['color' => 'linear-gradient(135deg, #D32F2F 50%, #FFEB3B 50%)', 'text' => '#000', 'name' => 'Red-Yellow', 'desc' => 'Master Level'],
+    13 => ['color' => 'linear-gradient(135deg, #D32F2F 50%, #C0C0C0 50%)', 'text' => '#000', 'name' => 'Red-Silver', 'desc' => 'Senior Master'],
+    14 => ['color' => 'linear-gradient(135deg, #C0C0C0, #E8E8E8, #C0C0C0)', 'text' => '#000', 'name' => 'Silver Khan', 'desc' => 'Grandmaster Level'],
+    15 => ['color' => 'linear-gradient(135deg, #C0C0C0 50%, #FFD700 50%)', 'text' => '#000', 'name' => 'Silver-Gold', 'desc' => 'Advanced Grandmaster'],
+    16 => ['color' => 'linear-gradient(135deg, #FFD700, #FFF9C4, #FFD700)', 'text' => '#000', 'name' => 'Gold Khan', 'desc' => 'Supreme Grandmaster']
 ];
 
 include '../includes/header.php';
 ?>
 
 <style>
-/* Khan Level Slider Styles */
-.khan-slider-container {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-    border-radius: 12px;
-    padding: 3rem 1rem;
-    margin-bottom: 3rem;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-}
+    /* Khan Level Slider Styles */
+    .khan-slider-container {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        border-radius: 12px;
+        padding: 3rem 1rem;
+        margin-bottom: 3rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
 
-.khan-slider {
-    display: flex;
-    transition: transform 0.5s ease-in-out;
-    gap: 2rem;
-    padding: 0 2rem;
-}
+    .khan-slider {
+        display: flex;
+        transition: transform 0.5s ease-in-out;
+        gap: 2rem;
+        padding: 0 2rem;
+    }
 
-.khan-slide {
-    min-width: 300px;
-    flex-shrink: 0;
-    text-align: center;
-    padding: 2rem;
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    border: 2px solid rgba(255,255,255,0.1);
-    transition: transform 0.3s ease;
-}
-
-.khan-slide:hover {
-    transform: translateY(-10px);
-    border-color: rgba(255,255,255,0.3);
-}
-
-.khan-belt-visual {
-    width: 200px;
-    height: 200px;
-    margin: 0 auto 1.5rem;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 4rem;
-    font-weight: bold;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    position: relative;
-    border: 5px solid rgba(255,255,255,0.2);
-}
-
-.khan-belt-visual::after {
-    content: '';
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    bottom: -10px;
-    left: -10px;
-    border-radius: 50%;
-    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-    animation: shine 3s infinite;
-}
-
-@keyframes shine {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-}
-
-.slider-nav {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255,255,255,0.9);
-    border: none;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 1.5rem;
-    color: #333;
-    z-index: 10;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.slider-nav:hover {
-    background: white;
-    transform: translateY(-50%) scale(1.1);
-}
-
-.slider-nav.prev { left: 1rem; }
-.slider-nav.next { right: 1rem; }
-
-/* Member Card Enhanced Styles */
-.member-card {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.member-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-}
-
-.member-photo-container {
-    width: 100%;
-    height: 280px;
-    overflow: hidden;
-    position: relative;
-    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
-}
-
-.member-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.member-initial-circle {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 5rem;
-    font-weight: bold;
-}
-
-.status-badge {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    padding: 0.5rem 1rem;
-    border-radius: 25px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    text-transform: uppercase;
-    color: white;
-    z-index: 10;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.khan-level-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem;
-    text-align: center;
-    backdrop-filter: blur(10px);
-}
-
-.khan-badge {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    border-radius: 30px;
-    font-weight: bold;
-    font-size: 0.95rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    border: 2px solid rgba(255,255,255,0.3);
-}
-
-.member-info {
-    padding: 1.5rem;
-}
-
-.member-name {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #1a1a1a;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
-.member-details {
-    font-size: 0.95rem;
-    color: #666;
-    line-height: 1.8;
-}
-
-.member-details-item {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f0f0f0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.member-details-item:last-child {
-    border-bottom: none;
-}
-
-.member-details-item strong {
-    color: #333;
-    min-width: 100px;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
     .khan-slide {
-        min-width: 250px;
+        min-width: 300px;
+        flex-shrink: 0;
+        text-align: center;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.3s ease;
     }
+
+    .khan-slide:hover {
+        transform: translateY(-10px);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
     .khan-belt-visual {
-        width: 150px;
-        height: 150px;
-        font-size: 3rem;
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 1.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 4rem;
+        font-weight: bold;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        position: relative;
+        border: 8px solid rgba(255, 255, 255, 0.1);
+        /* Changed from background-color to background to support gradients */
+        background-size: cover;
+        z-index: 1;
     }
+
+    /* Add a subtle texture to the "belt" circles */
+    .khan-belt-visual::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        opacity: 0.1;
+        z-index: -1;
+    }
+ 
+    @keyframes shine {
+
+        0%,
+        100% {
+            opacity: 0;
+        }
+
+        50% {
+            opacity: 1;
+        }
+    }
+
+    .slider-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.5rem;
+        color: #333;
+        z-index: 10;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider-nav:hover {
+        background: white;
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    .slider-nav.prev {
+        left: 1rem;
+    }
+
+    .slider-nav.next {
+        right: 1rem;
+    }
+
+    /* Member Card Enhanced Styles */
+    .member-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .member-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
     .member-photo-container {
-        height: 220px;
+        width: 100%;
+        height: 280px;
+        overflow: hidden;
+        position: relative;
+        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
     }
-}
+
+    .member-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .member-initial-circle {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 5rem;
+        font-weight: bold;
+    }
+
+    .status-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: white;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .khan-level-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 1rem;
+        text-align: center;
+        backdrop-filter: blur(10px);
+    }
+
+    .khan-badge {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: 30px;
+        font-weight: bold;
+        font-size: 0.95rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .member-info {
+        padding: 1.5rem;
+    }
+
+    .member-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #1a1a1a;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+
+    .member-details {
+        font-size: 0.95rem;
+        color: #666;
+        line-height: 1.8;
+    }
+
+    .member-details-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .member-details-item:last-child {
+        border-bottom: none;
+    }
+
+    .member-details-item strong {
+        color: #333;
+        min-width: 100px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .khan-slide {
+            min-width: 250px;
+        }
+
+        .khan-belt-visual {
+            width: 150px;
+            height: 150px;
+            font-size: 3rem;
+        }
+
+        .member-photo-container {
+            height: 220px;
+        }
+    }
 </style>
 
 <section class="section">
@@ -272,23 +288,24 @@ include '../includes/header.php';
                 Certified practitioners advancing through the Khan grading system
             </p>
         </div>
-        
+
         <div style="max-width: 1400px; margin: 3rem auto;">
-            
+
             <!-- Khan Level Colors Slider -->
             <div style="margin-bottom: 3rem;">
                 <h2 style="text-align: center; margin-bottom: 2rem; font-size: 2rem; color: var(--color-primary);">
                     🥋 The Khan Journey: 16 Levels of Mastery
                 </h2>
-                
+
                 <div class="khan-slider-container">
                     <button class="slider-nav prev" onclick="slideKhan(-1)">‹</button>
                     <button class="slider-nav next" onclick="slideKhan(1)">›</button>
-                    
+
                     <div class="khan-slider" id="khanSlider">
                         <?php foreach ($khan_colors as $level => $info): ?>
                             <div class="khan-slide">
-                                <div class="khan-belt-visual" style="background: <?php echo $info['color']; ?>; color: <?php echo $info['text']; ?>;">
+                                <div class="khan-belt-visual"
+                                    style="background: <?php echo $info['color']; ?>; color: <?php echo $info['text']; ?>;">
                                     <?php echo $level; ?>
                                 </div>
                                 <h3 style="color: white; margin-bottom: 0.5rem; font-size: 1.3rem;">
@@ -304,24 +321,24 @@ include '../includes/header.php';
                         <?php endforeach; ?>
                     </div>
                 </div>
-                
+
                 <div style="text-align: center; margin-top: 1.5rem; color: #666;">
                     <p>← Swipe or use arrows to explore all 16 Khan levels →</p>
                 </div>
             </div>
-            
+
             <!-- What is Khan Info -->
             <div class="card" style="margin-bottom: 3rem; padding: 2rem;">
                 <h3 style="color: var(--color-primary); margin-bottom: 1rem; font-size: 1.5rem;">📖 What is Khan?</h3>
                 <p style="color: var(--color-text-light); line-height: 1.8; font-size: 1.05rem;">
-                    The Khan system is the traditional ranking structure in Muayboran, similar to belt 
-                    levels in other martial arts. It represents a practitioner's knowledge, skill, and 
-                    dedication to the art. Each Khan level requires mastery of specific techniques, forms, 
-                    and philosophical understanding. The journey from White Khan to Black/Gold Grandmaster 
+                    The Khan system is the traditional ranking structure in Muayboran, similar to belt
+                    levels in other martial arts. It represents a practitioner's knowledge, skill, and
+                    dedication to the art. Each Khan level requires mastery of specific techniques, forms,
+                    and philosophical understanding. The journey from White Khan to Black/Gold Grandmaster
                     represents years of dedication, discipline, and mastery.
                 </p>
             </div>
-            
+
             <!-- Members List -->
             <div class="section-header" style="margin-top: 4rem; text-align: center;">
                 <h2 class="section-title">Our Distinguished Members</h2>
@@ -329,7 +346,7 @@ include '../includes/header.php';
                     <?php echo count($members); ?> certified practitioners on their Khan journey
                 </p>
             </div>
-            
+
             <?php if (empty($members)): ?>
                 <div class="card text-center" style="padding: 4rem; margin-top: 2rem;">
                     <div style="font-size: 4rem; margin-bottom: 1rem;">🥋</div>
@@ -342,11 +359,12 @@ include '../includes/header.php';
                 </div>
             <?php else: ?>
                 <!-- Members Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2.5rem; margin-top: 3rem;">
-                    <?php foreach ($members as $member): 
-                        $khan_level = (int)$member['current_khan_level'];
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2.5rem; margin-top: 3rem;">
+                    <?php foreach ($members as $member):
+                        $khan_level = (int) $member['current_khan_level'];
                         $color_info = isset($khan_colors[$khan_level]) ? $khan_colors[$khan_level] : ['color' => '#999', 'text' => '#FFF', 'name' => 'Khan ' . $khan_level, 'desc' => ''];
-                        
+
                         // Status colors
                         $status_colors = [
                             'active' => '#4CAF50',
@@ -354,14 +372,14 @@ include '../includes/header.php';
                             'graduated' => '#2196F3'
                         ];
                         $status_color = isset($status_colors[$member['status']]) ? $status_colors[$member['status']] : '#999';
-                        
+
                         // Determine photo path
                         $has_photo = !empty($member['photo_path']) && file_exists('../' . $member['photo_path']);
                         $photo_path = $has_photo ? '../' . $member['photo_path'] : '';
-                        
+
                         // Get initial for fallback
                         $initial = strtoupper(substr($member['full_name'], 0, 1));
-                    ?>
+                        ?>
                         <div class="member-card">
                             <!-- Member Photo Container -->
                             <div class="member-photo-container" style="background: <?php echo $color_info['color']; ?>;">
@@ -369,30 +387,32 @@ include '../includes/header.php';
                                 <div class="status-badge" style="background: <?php echo $status_color; ?>;">
                                     <?php echo htmlspecialchars($member['status']); ?>
                                 </div>
-                                
+
                                 <!-- Photo or Initial -->
                                 <?php if ($has_photo): ?>
-                                    <img src="<?php echo htmlspecialchars($photo_path); ?>" alt="<?php echo htmlspecialchars($member['full_name']); ?>" class="member-photo">
+                                    <img src="<?php echo htmlspecialchars($photo_path); ?>"
+                                        alt="<?php echo htmlspecialchars($member['full_name']); ?>" class="member-photo">
                                 <?php else: ?>
                                     <div class="member-initial-circle" style="color: <?php echo $color_info['text']; ?>;">
                                         <?php echo $initial; ?>
                                     </div>
                                 <?php endif; ?>
-                                
+
                                 <!-- Khan Level Overlay -->
                                 <div class="khan-level-overlay">
-                                    <div class="khan-badge" style="background: <?php echo $color_info['color']; ?>; color: <?php echo $color_info['text']; ?>;">
+                                    <div class="khan-badge"
+                                        style="background: <?php echo $color_info['color']; ?>; color: <?php echo $color_info['text']; ?>;">
                                         ⭐ Khan Level <?php echo $khan_level; ?>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Member Info -->
                             <div class="member-info">
                                 <h3 class="member-name">
                                     <?php echo htmlspecialchars($member['full_name']); ?>
                                 </h3>
-                                
+
                                 <div class="member-details">
                                     <?php if (!empty($member['instructor_name'])): ?>
                                         <div class="member-details-item">
@@ -401,7 +421,7 @@ include '../includes/header.php';
                                             <span><?php echo htmlspecialchars($member['instructor_name']); ?></span>
                                         </div>
                                     <?php endif; ?>
-                                    
+
                                     <?php if (!empty($member['training_location'])): ?>
                                         <div class="member-details-item">
                                             <span>📍</span>
@@ -409,7 +429,7 @@ include '../includes/header.php';
                                             <span><?php echo htmlspecialchars($member['training_location']); ?></span>
                                         </div>
                                     <?php endif; ?>
-                                    
+
                                     <?php if (!empty($member['date_joined'])): ?>
                                         <div class="member-details-item">
                                             <span>📅</span>
@@ -417,7 +437,7 @@ include '../includes/header.php';
                                             <span><?php echo date('F Y', strtotime($member['date_joined'])); ?></span>
                                         </div>
                                     <?php endif; ?>
-                                    
+
                                     <?php if (!empty($member['date_promoted']) && $member['date_promoted'] != '0000-00-00'): ?>
                                         <div class="member-details-item">
                                             <span>⬆️</span>
@@ -431,18 +451,21 @@ include '../includes/header.php';
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-            
+
             <!-- Call to Action -->
-            <div style="text-align: center; margin-top: 5rem; padding: 3rem; background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%); border-radius: 16px; color: white;">
+            <div
+                style="text-align: center; margin-top: 5rem; padding: 3rem; background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%); border-radius: 16px; color: white;">
                 <h2 style="margin-bottom: 1rem; font-size: 2rem; color: white;">Begin Your Khan Journey Today</h2>
                 <p style="font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.95;">
                     Join our community of dedicated practitioners and start your path to mastery
                 </p>
                 <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                    <a href="khan-grading.php" class="btn" style="background: white; color: var(--color-primary); border: none; padding: 1rem 2rem; font-size: 1.1rem;">
+                    <a href="khan-grading.php" class="btn"
+                        style="background: white; color: var(--color-primary); border: none; padding: 1rem 2rem; font-size: 1.1rem;">
                         📊 View Grading Structure
                     </a>
-                    <a href="contact.php" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 1rem 2rem; font-size: 1.1rem;">
+                    <a href="contact.php" class="btn"
+                        style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 1rem 2rem; font-size: 1.1rem;">
                         ✍️ Submit Membership Inquiry
                     </a>
                 </div>
@@ -452,49 +475,49 @@ include '../includes/header.php';
 </section>
 
 <script>
-// Khan Level Slider
-let currentSlide = 0;
-const slider = document.getElementById('khanSlider');
-const slides = slider.children.length;
-const slideWidth = 316; // 300px + 16px gap
+    // Khan Level Slider
+    let currentSlide = 0;
+    const slider = document.getElementById('khanSlider');
+    const slides = slider.children.length;
+    const slideWidth = 316; // 300px + 16px gap
 
-function slideKhan(direction) {
-    currentSlide += direction;
-    
-    // Loop around
-    if (currentSlide < 0) {
-        currentSlide = slides - 4;
-    } else if (currentSlide > slides - 4) {
-        currentSlide = 0;
+    function slideKhan(direction) {
+        currentSlide += direction;
+
+        // Loop around
+        if (currentSlide < 0) {
+            currentSlide = slides - 4;
+        } else if (currentSlide > slides - 4) {
+            currentSlide = 0;
+        }
+
+        slider.style.transform = `translateX(-${currentSlide * slideWidth}px)`;
     }
-    
-    slider.style.transform = `translateX(-${currentSlide * slideWidth}px)`;
-}
 
-// Auto-slide every 5 seconds
-setInterval(() => {
-    slideKhan(1);
-}, 5000);
-
-// Touch support for mobile
-let touchStartX = 0;
-let touchEndX = 0;
-
-slider.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
-});
-
-slider.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
-    if (touchStartX - touchEndX > 50) {
+    // Auto-slide every 5 seconds
+    setInterval(() => {
         slideKhan(1);
-    } else if (touchEndX - touchStartX > 50) {
-        slideKhan(-1);
-    }
-});
+    }, 5000);
+
+    // Touch support for mobile
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    slider.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+
+    slider.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        if (touchStartX - touchEndX > 50) {
+            slideKhan(1);
+        } else if (touchEndX - touchStartX > 50) {
+            slideKhan(-1);
+        }
+    });
 </script>
 
-<?php 
+<?php
 $conn->close();
-include '../includes/footer.php'; 
+include '../includes/footer.php';
 ?>
