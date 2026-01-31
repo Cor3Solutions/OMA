@@ -32,13 +32,13 @@ $instructors = $conn->query("SELECT * FROM instructors WHERE status = 'active' O
         <div style="max-width: 900px; margin: 3rem auto;">
             <div style="margin-bottom: 3rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 250px;">
-                    <img src="../assets/images/1.png" alt="Grandmaster Sane Tubthimtong"
+                    <img src="../assets/images/1.png" alt="Grandmaster Sane Tubtimtong"
                         style="width: 100%; height: 300px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                 </div>
                 <div style="flex: 1; min-width: 250px;">
-                    <h2 style="color: var(--color-primary); margin-bottom: 1.5rem;">Grandmaster Sane Tubthimtong</h2>
+                    <h2 style="color: var(--color-primary); margin-bottom: 1.5rem;">Grandmaster Sane Tubtimtong</h2>
                     <p style="font-size: 1.15rem; line-height: 1.8; color: var(--color-text-light);">
-                        The foundation of our lineage rests upon Grandmaster Sane Tubthimtong, a legendary figure in the
+                        The foundation of our lineage rests upon Grandmaster Sane Tubtimtong, a legendary figure in the
                         world of Muay Boran.
                         His teachings form the cornerstone of our curriculum, passed down through generations of
                         dedicated practitioners.

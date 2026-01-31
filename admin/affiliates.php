@@ -7,8 +7,9 @@ $conn = getDbConnection();
 $success = '';
 $error = '';
 
-// Handle form submissions
+// --- PHP FORM HANDLING ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 1. Add Affiliate
     if (isset($_POST['add_affiliate'])) {
         $name = sanitize($_POST['name']);
         $description = sanitize($_POST['description']);
@@ -19,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $display_order = (int)$_POST['display_order'];
         $status = $_POST['status'];
         
-        // Handle logo upload
         $logo_path = '';
         if (!empty($_FILES['logo']['name'])) {
             $upload = uploadFile($_FILES['logo'], UPLOAD_DIR . 'affiliates/', ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
@@ -43,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
+    // 2. Edit Affiliate
     elseif (isset($_POST['edit_affiliate'])) {
         $id = (int)$_POST['id'];
         $name = sanitize($_POST['name']);
@@ -54,13 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $display_order = (int)$_POST['display_order'];
         $status = $_POST['status'];
         
-        // Get current logo
         $current = $conn->query("SELECT logo_path FROM affiliates WHERE id = $id")->fetch_assoc();
         $logo_path = $current['logo_path'];
         
-        // Handle new logo upload
         if (!empty($_FILES['logo']['name'])) {
-            // Delete old logo
             if (!empty($logo_path) && file_exists($logo_path)) {
                 deleteFile($logo_path);
             }
@@ -86,18 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
+    // 3. Delete Affiliate
     elseif (isset($_POST['delete_affiliate'])) {
         $id = (int)$_POST['id'];
         
-        // Get logo path before deleting
         $result = $conn->query("SELECT logo_path FROM affiliates WHERE id = $id");
         if ($affiliate = $result->fetch_assoc()) {
-            // Delete logo file
             if (!empty($affiliate['logo_path']) && file_exists($affiliate['logo_path'])) {
                 deleteFile($affiliate['logo_path']);
             }
             
-            // Delete record
             if ($conn->query("DELETE FROM affiliates WHERE id = $id")) {
                 $success = 'Affiliate deleted successfully!';
             } else {
@@ -125,63 +121,80 @@ include 'includes/admin_header.php';
     <div class="section-header">
         <h2>Affiliate Organizations</h2>
         <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
-            Add New Affiliate
+            <i class="fas fa-plus"></i> Add New Affiliate
         </button>
     </div>
+
+    <div class="search-container">
+        <input type="text" id="affiliateSearch" onkeyup="filterAffiliates()" placeholder="🔍 Search affiliates by name, email, phone..." class="search-input">
+    </div>
     
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Logo</th>
-                    <th>Name</th>
-                    <th>Contact</th>
-                    <th>Display Order</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php while ($affiliate = $affiliates->fetch_assoc()): ?>
-                <tr>
-                    <td>
-                        <?php if (!empty($affiliate['logo_path'])): ?>
-                            <img src="<?php echo SITE_URL . '/' . $affiliate['logo_path']; ?>" alt="Logo" style="width: 60px; height: 60px; object-fit: contain; border-radius: 4px;">
-                        <?php else: ?>
-                            <div style="width: 60px; height: 60px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px;">No Logo</div>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <strong><?php echo htmlspecialchars($affiliate['name']); ?></strong><br>
-                        <small><?php echo htmlspecialchars(substr($affiliate['description'], 0, 60)); ?>...</small>
-                    </td>
-                    <td>
-                        <?php if ($affiliate['contact_email']): ?>
-                            <a href="mailto:<?php echo htmlspecialchars($affiliate['contact_email']); ?>"><?php echo htmlspecialchars($affiliate['contact_email']); ?></a><br>
-                        <?php endif; ?>
-                        <?php if ($affiliate['contact_phone']): ?>
-                            <span><?php echo htmlspecialchars($affiliate['contact_phone']); ?></span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?php echo $affiliate['display_order']; ?></td>
-                    <td><span class="badge badge-<?php echo $affiliate['status']; ?>"><?php echo ucfirst($affiliate['status']); ?></span></td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary" onclick="editAffiliate(<?php echo htmlspecialchars(json_encode($affiliate)); ?>)">Edit</button>
-                            <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this affiliate?');">
-                                <input type="hidden" name="id" value="<?php echo $affiliate['id']; ?>">
-                                <button type="submit" name="delete_affiliate" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+    <div class="affiliates-grid" id="affiliatesGrid">
+        <?php while ($affiliate = $affiliates->fetch_assoc()): ?>
+        <div class="affiliate-card">
+            
+            <span class="card-badge badge-<?php echo $affiliate['status']; ?>">
+                <?php echo ucfirst($affiliate['status']); ?>
+            </span>
+
+            <div class="card-image-container">
+                <?php if (!empty($affiliate['logo_path'])): ?>
+                    <img src="<?php echo SITE_URL . '/' . $affiliate['logo_path']; ?>" alt="<?php echo htmlspecialchars($affiliate['name']); ?>">
+                <?php else: ?>
+                    <div class="no-logo"><span>No Logo</span></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="card-content">
+                <div class="card-meta">Order: <?php echo $affiliate['display_order']; ?></div>
+                <h3 class="card-title"><?php echo htmlspecialchars($affiliate['name']); ?></h3>
+                
+                <p class="card-description">
+                    <?php 
+                        $desc = htmlspecialchars($affiliate['description']);
+                        echo strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc; 
+                    ?>
+                </p>
+
+                <div class="card-contact">
+                    <?php if ($affiliate['website_url']): ?>
+                        <a href="<?php echo htmlspecialchars($affiliate['website_url']); ?>" target="_blank">🌐 Website</a>
+                    <?php endif; ?>
+                    <?php if ($affiliate['facebook_url']): ?>
+                        <a href="<?php echo htmlspecialchars($affiliate['facebook_url']); ?>" target="_blank">📘 Facebook</a>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="card-contact-details">
+                    <?php if ($affiliate['contact_email']): ?>
+                        <div>✉️ <?php echo htmlspecialchars($affiliate['contact_email']); ?></div>
+                    <?php endif; ?>
+                    <?php if ($affiliate['contact_phone']): ?>
+                        <div>📞 <?php echo htmlspecialchars($affiliate['contact_phone']); ?></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="card-actions">
+                <button class="btn btn-block btn-outline" onclick="editAffiliate(<?php echo htmlspecialchars(json_encode($affiliate)); ?>)">
+                    Edit
+                </button>
+                <form method="POST" onsubmit="return confirm('Are you sure you want to delete this affiliate?');">
+                    <input type="hidden" name="id" value="<?php echo $affiliate['id']; ?>">
+                    <button type="submit" name="delete_affiliate" class="btn btn-block btn-danger-outline">
+                        Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+        <?php endwhile; ?>
+    </div>
+    
+    <div id="noResults" style="display:none; text-align:center; padding: 2rem; color: #666;">
+        <h3>No affiliates found matching your search.</h3>
     </div>
 </div>
 
-<!-- Add Affiliate Modal -->
 <div id="addModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="document.getElementById('addModal').style.display='none'">&times;</span>
@@ -249,7 +262,6 @@ include 'includes/admin_header.php';
     </div>
 </div>
 
-<!-- Edit Affiliate Modal -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
@@ -321,6 +333,171 @@ include 'includes/admin_header.php';
 </div>
 
 <style>
+/* Search Bar */
+.search-container {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.search-input {
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 16px;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.search-input:focus {
+    background-color: #fff;
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+/* Grid Layout */
+.affiliates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+/* Card Styling */
+.affiliate-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #eee;
+}
+
+.affiliate-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* Status Badge */
+.card-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+    z-index: 2;
+}
+.badge-active { background-color: #28a745; }
+.badge-inactive { background-color: #6c757d; }
+
+/* Logo Area */
+.card-image-container {
+    height: 180px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.card-image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.no-logo {
+    color: #999;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Card Body */
+.card-content {
+    padding: 1.25rem;
+    flex-grow: 1; 
+}
+
+.card-meta {
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    color: #333;
+}
+
+.card-description {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+    min-height: 40px;
+}
+
+.card-contact, .card-contact-details {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-contact a {
+    margin-right: 10px;
+    color: #007bff;
+    text-decoration: none;
+}
+.card-contact a:hover { text-decoration: underline; }
+
+.card-contact-details div {
+    margin-bottom: 3px;
+    color: #555;
+}
+
+/* Card Actions */
+.card-actions {
+    padding: 1rem;
+    background: #fcfcfc;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-block {
+    flex: 1;
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+.btn-danger-outline {
+    background: transparent;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-danger-outline:hover {
+    background: #dc3545;
+    color: white;
+}
+
+/* Modal Styles */
 .modal {
     display: none;
     position: fixed;
@@ -358,6 +535,35 @@ include 'includes/admin_header.php';
 </style>
 
 <script>
+// Filter Search Function
+function filterAffiliates() {
+    const input = document.getElementById('affiliateSearch');
+    const filter = input.value.toLowerCase();
+    const grid = document.getElementById('affiliatesGrid');
+    const cards = grid.getElementsByClassName('affiliate-card');
+    let visibleCount = 0;
+
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const textContent = card.textContent || card.innerText;
+        
+        if (textContent.toLowerCase().indexOf(filter) > -1) {
+            card.style.display = "";
+            visibleCount++;
+        } else {
+            card.style.display = "none";
+        }
+    }
+
+    const noResultsMsg = document.getElementById('noResults');
+    if (visibleCount === 0) {
+        noResultsMsg.style.display = 'block';
+    } else {
+        noResultsMsg.style.display = 'none';
+    }
+}
+
+// Edit Modal Population
 function editAffiliate(affiliate) {
     document.getElementById('edit_id').value = affiliate.id;
     document.getElementById('edit_name').value = affiliate.name;
@@ -377,6 +583,13 @@ function editAffiliate(affiliate) {
     }
     
     document.getElementById('editModal').style.display = 'block';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = "none";
+    }
 }
 </script>
 

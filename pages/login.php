@@ -7,7 +7,7 @@ if (isLoggedIn()) {
     if (isAdmin()) {
         header('Location: ../admin/index.php');
     } else {
-        header('Location: dashboard.php');
+        header('Location: ../user/dashboard.php');
     }
     exit;
 }
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 if ($user['role'] === 'admin') {
                     header('Location: ../admin/index.php');
                 } else {
-                    header('Location: dashboard.php');
+                    header('Location: ../user/dashboard.php');
                 }
                 exit;
             } else {

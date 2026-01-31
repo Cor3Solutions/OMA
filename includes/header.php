@@ -70,8 +70,7 @@ $basePath = $isInPages ? '../' : '';
                             <ul class="dropdown">
                                 <li><a href="<?php echo SITE_URL; ?>/pages/khan-grading.php">Khan Grading</a></li>
                                 <li><a href="<?php echo SITE_URL; ?>/pages/khan-members.php">Khan Members</a></li>
-                                <li><a href="<?php echo SITE_URL; ?>/pages/register.php">Register</a></li>
-                            </ul>
+                             </ul>
                         </li>
 
                         <li class="nav-item">

@@ -7,258 +7,229 @@ $conn = getDbConnection();
 $user_id = $_SESSION['user_id'];
 $user_role = $_SESSION['user_role'];
 
-// Redirect admins to admin panel
 if ($user_role === 'admin') {
     header('Location: ' . SITE_URL . '/admin/index.php');
     exit;
 }
 
-// Get user details
-$user_query = $conn->query("SELECT * FROM users WHERE id = $user_id");
-$user = $user_query->fetch_assoc();
-
-// Get role-specific data
+$user = $conn->query("SELECT * FROM users WHERE id = $user_id")->fetch_assoc();
 $role_data = null;
 $courses = [];
+$my_students = [];
 
+// FETCH DATA
 if ($user_role === 'member') {
-    // Get member data
-    $member_query = $conn->query("
-        SELECT km.*, i.name as instructor_name 
-        FROM khan_members km 
-        LEFT JOIN instructors i ON km.instructor_id = i.id 
-        WHERE km.user_id = $user_id
-    ");
+    $member_query = $conn->query("SELECT km.*, i.name as instructor_name FROM khan_members km LEFT JOIN instructors i ON km.instructor_id = i.id WHERE km.user_id = $user_id");
     $role_data = $member_query->fetch_assoc();
     
-    // Get enrolled courses for member
-    $courses_query = $conn->query("
-        SELECT * FROM course_materials 
-        WHERE status = 'published' 
-        AND (is_public = 1 OR khan_level_min <= " . ($role_data['current_khan_level'] ?? 1) . " 
-        AND khan_level_max >= " . ($role_data['current_khan_level'] ?? 1) . ")
-        ORDER BY display_order, title
-    ");
-    while ($course = $courses_query->fetch_assoc()) {
-        $courses[] = $course;
-    }
+    $courses_query = $conn->query("SELECT * FROM course_materials WHERE status = 'published' AND (is_public = 1 OR khan_level_min <= " . ($role_data['current_khan_level'] ?? 1) . " AND khan_level_max >= " . ($role_data['current_khan_level'] ?? 1) . ") ORDER BY display_order, title");
+    while ($course = $courses_query->fetch_assoc()) { $courses[] = $course; }
     
 } elseif ($user_role === 'instructor') {
-    // Get instructor data
     $instructor_query = $conn->query("SELECT * FROM instructors WHERE user_id = $user_id");
     $role_data = $instructor_query->fetch_assoc();
     
-    // Get all courses for instructors
-    $courses_query = $conn->query("
-        SELECT * FROM course_materials 
-        WHERE status = 'published' 
-        ORDER BY category, display_order, title
-    ");
-    while ($course = $courses_query->fetch_assoc()) {
-        $courses[] = $course;
+    $courses_query = $conn->query("SELECT * FROM course_materials WHERE status = 'published' ORDER BY category, display_order, title");
+    while ($course = $courses_query->fetch_assoc()) { $courses[] = $course; }
+
+    if ($role_data) {
+        $students_query = $conn->query("SELECT * FROM khan_members WHERE instructor_id = " . $role_data['id'] . " ORDER BY current_khan_level DESC");
+        while ($student = $students_query->fetch_assoc()) { $my_students[] = $student; }
     }
 }
 
 include 'includes/user_header.php';
 ?>
 
-<div class="dashboard-container">
-    <!-- Welcome Section -->
-    <div class="welcome-banner">
-        <div class="welcome-content">
-            <h1>Welcome back, <?php echo htmlspecialchars($user['name']); ?>!</h1>
-            <p class="user-role-badge">
-                <?php if ($user_role === 'member'): ?>
-                    <span class="badge badge-member">Member</span>
-                <?php else: ?>
-                    <span class="badge badge-instructor">Instructor</span>
-                <?php endif; ?>
-            </p>
+<style>
+    :root {
+        --primary: #2c3e50;
+        --secondary: #34495e;
+        --accent: #3498db;
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --text: #333333;
+        --muted: #7f8c8d;
+        --border: #e0e0e0;
+        --radius: 12px;
+        --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+
+    body {
+        background-color: var(--bg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: var(--text);
+        margin: 0;
+        padding-bottom: 80px; /* Space for bottom nav if needed */
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    /* Mobile Typography */
+    h1 { font-size: 1.5rem; margin: 0; }
+    h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--secondary); display: flex; align-items: center; gap: 10px; }
+    
+    /* Header */
+    .dashboard-header {
+        background: var(--card);
+        padding: 1.5rem;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .user-info { display: flex; align-items: center; gap: 15px; }
+    .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #eee; }
+    .badge-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; background: #e3f2fd; color: #1565c0; }
+
+    /* Grid Layouts */
+    .grid-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive */
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--card);
+        padding: 1.25rem;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        border-left: 4px solid var(--accent);
+    }
+    .stat-card h4 { margin: 0; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+    .stat-card p { margin: 5px 0 0; font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+
+    /* Course Cards */
+    .grid-courses {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .course-card {
+        background: var(--card);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .course-thumb {
+        height: 160px;
+        background: #eee;
+        position: relative;
+    }
+    .course-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .course-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; }
+    .course-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem 0; }
+    .course-desc { font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem; flex: 1; }
+    
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 100%; padding: 12px; border-radius: 8px;
+        border: none; font-weight: 600; cursor: pointer;
+        font-size: 0.95rem; text-decoration: none; gap: 8px;
+        transition: opacity 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn:active { opacity: 0.8; transform: scale(0.98); }
+
+    /* Mobile Optimization */
+    @media (max-width: 768px) {
+        .container { padding: 1rem; }
+        .dashboard-header { flex-direction: column; align-items: flex-start; }
+        .grid-stats { grid-template-columns: 1fr 1fr; }
+        .grid-courses { grid-template-columns: 1fr; } /* Stack courses on phone */
+    }
+</style>
+
+<div class="container">
+    <div class="dashboard-header">
+        <div>
+            <h1>Hello, <?php echo htmlspecialchars($user['name']); ?></h1>
+            <p style="margin:5px 0 0; color:var(--muted); font-size:0.9rem;"><?php echo date('F j, Y'); ?></p>
         </div>
-        <?php if ($role_data && !empty($role_data['photo_path'])): ?>
-            <div class="user-avatar-large">
-                <img src="<?php echo SITE_URL . '/' . $role_data['photo_path']; ?>" alt="Profile">
-            </div>
-        <?php endif; ?>
+        <div class="user-info">
+            <span class="badge-pill"><?php echo ucfirst($user_role); ?></span>
+            <?php if ($role_data && !empty($role_data['photo_path'])): ?>
+                <img src="<?php echo SITE_URL . '/' . $role_data['photo_path']; ?>" class="avatar">
+            <?php else: ?>
+                <div class="avatar" style="display:flex;align-items:center;justify-content:center;font-weight:bold;color:#777;">
+                    <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="stats-grid">
+    <div class="grid-stats">
         <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <i class="fas fa-id-card"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-label">Serial Number</div>
-                <div class="stat-value"><?php echo htmlspecialchars($user['serial_number']); ?></div>
-            </div>
-        </div>
-
-        <?php if ($user_role === 'member' && $role_data): ?>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Current Rank</div>
-                    <div class="stat-value">Khan <?php echo $role_data['current_khan_level']; ?></div>
-                </div>
-            </div>
-
-            <?php if ($role_data['khan_color']): ?>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <i class="fas fa-palette"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Khan Color</div>
-                    <div class="stat-value"><?php echo htmlspecialchars($role_data['khan_color']); ?></div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <?php if ($role_data['instructor_name']): ?>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                    <i class="fas fa-user-tie"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Instructor</div>
-                    <div class="stat-value"><?php echo htmlspecialchars($role_data['instructor_name']); ?></div>
-                </div>
-            </div>
-            <?php endif; ?>
-        <?php elseif ($user_role === 'instructor' && $role_data): ?>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <i class="fas fa-award"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Khan Level</div>
-                    <div class="stat-value"><?php echo htmlspecialchars($role_data['khan_level']); ?></div>
-                </div>
-            </div>
-
-            <?php if ($role_data['title']): ?>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <i class="fas fa-briefcase"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Title</div>
-                    <div class="stat-value"><?php echo htmlspecialchars($role_data['title']); ?></div>
-                </div>
-            </div>
-            <?php endif; ?>
-        <?php endif; ?>
-
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                <i class="fas fa-book"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-label">Available Courses</div>
-                <div class="stat-value"><?php echo count($courses); ?></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Profile Information -->
-    <div class="dashboard-section">
-        <div class="section-header">
-            <h2><i class="fas fa-user-circle"></i> Profile Information</h2>
-            <a href="profile.php" class="btn btn-primary btn-sm">
-                <i class="fas fa-edit"></i> Edit Profile
-            </a>
-        </div>
-        <div class="profile-grid">
-            <div class="profile-item">
-                <label>Full Name</label>
-                <p><?php echo htmlspecialchars($user['name']); ?></p>
-            </div>
-            <div class="profile-item">
-                <label>Email</label>
-                <p><?php echo htmlspecialchars($user['email']); ?></p>
-            </div>
-            <div class="profile-item">
-                <label>Phone</label>
-                <p><?php echo htmlspecialchars($user['phone'] ?: 'Not provided'); ?></p>
-            </div>
-            <?php if ($user_role === 'member' && $role_data): ?>
-                <div class="profile-item">
-                    <label>Date Joined</label>
-                    <p><?php echo formatDate($role_data['date_joined']); ?></p>
-                </div>
-                <?php if ($role_data['training_location']): ?>
-                <div class="profile-item">
-                    <label>Training Location</label>
-                    <p><?php echo htmlspecialchars($role_data['training_location']); ?></p>
-                </div>
-                <?php endif; ?>
-            <?php elseif ($user_role === 'instructor' && $role_data): ?>
-                <?php if ($role_data['location']): ?>
-                <div class="profile-item">
-                    <label>Location</label>
-                    <p><?php echo htmlspecialchars($role_data['location']); ?></p>
-                </div>
-                <?php endif; ?>
-                <?php if ($role_data['specialization']): ?>
-                <div class="profile-item">
-                    <label>Specialization</label>
-                    <p><?php echo htmlspecialchars($role_data['specialization']); ?></p>
-                </div>
-                <?php endif; ?>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Available Courses -->
-    <div class="dashboard-section">
-        <div class="section-header">
-            <h2><i class="fas fa-graduation-cap"></i> Available Courses</h2>
+            <h4>Serial No.</h4>
+            <p><?php echo htmlspecialchars($user['serial_number']); ?></p>
         </div>
         
+        <?php if ($user_role === 'member'): ?>
+            <div class="stat-card" style="border-color: #e67e22;">
+                <h4>Rank</h4>
+                <p>Khan <?php echo $role_data['current_khan_level'] ?? 1; ?></p>
+            </div>
+            <div class="stat-card" style="border-color: #27ae60;">
+                <h4>Instructor</h4>
+                <p style="font-size:1rem; margin-top:10px;"><?php echo htmlspecialchars($role_data['instructor_name'] ?? 'None'); ?></p>
+            </div>
+        <?php else: ?>
+             <div class="stat-card" style="border-color: #e67e22;">
+                <h4>Students</h4>
+                <p><?php echo count($my_students); ?></p>
+            </div>
+        <?php endif; ?>
+        
+        <div class="stat-card" style="border-color: #3498db;">
+            <h4>Courses</h4>
+            <p><?php echo count($courses); ?></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2><i class="fas fa-layer-group"></i> Recent Materials</h2>
         <?php if (count($courses) > 0): ?>
-            <div class="courses-grid">
-                <?php foreach ($courses as $course): ?>
+            <div class="grid-courses">
+                <?php foreach (array_slice($courses, 0, 3) as $course): ?>
                 <div class="course-card">
-                    <?php if ($course['thumbnail_path']): ?>
-                        <div class="course-thumbnail">
-                            <img src="<?php echo SITE_URL . '/' . $course['thumbnail_path']; ?>" alt="<?php echo htmlspecialchars($course['title']); ?>">
-                        </div>
-                    <?php endif; ?>
-                    <div class="course-content">
-                        <div class="course-category"><?php echo ucfirst($course['category']); ?></div>
-                        <h3><?php echo htmlspecialchars($course['title']); ?></h3>
-                        <p><?php echo htmlspecialchars(substr($course['description'], 0, 120)) . '...'; ?></p>
-                        <div class="course-meta">
-                            <span><i class="fas fa-layer-group"></i> Khan <?php echo $course['khan_level_min']; ?>-<?php echo $course['khan_level_max']; ?></span>
-                            <?php if ($course['duration_minutes']): ?>
-                                <span><i class="fas fa-clock"></i> <?php echo $course['duration_minutes']; ?> min</span>
-                            <?php endif; ?>
-                        </div>
-                        <button class="btn btn-primary btn-block" onclick="viewCourse(<?php echo $course['id']; ?>)">
-                            <i class="fas fa-play-circle"></i> View Course
-                        </button>
+                    <div class="course-thumb">
+                        <?php if ($course['thumbnail_path']): ?>
+                            <img src="<?php echo SITE_URL . '/' . $course['thumbnail_path']; ?>">
+                        <?php endif; ?>
+                    </div>
+                    <div class="course-body">
+                        <div class="course-title"><?php echo htmlspecialchars($course['title']); ?></div>
+                        <div class="course-desc">Level <?php echo $course['khan_level_min']; ?>-<?php echo $course['khan_level_max']; ?></div>
+                        <a href="courses.php" class="btn btn-outline">View Details</a>
                     </div>
                 </div>
                 <?php endforeach; ?>
             </div>
+            <div style="margin-top:1rem; text-align:center;">
+                <a href="courses.php" class="btn btn-primary" style="max-width:200px;">View All Courses</a>
+            </div>
         <?php else: ?>
-            <div class="empty-state">
-                <i class="fas fa-book-open"></i>
-                <h3>No Courses Available</h3>
-                <p>There are currently no courses available for your level.</p>
+            <div style="padding:2rem; text-align:center; background:white; border-radius:12px;">
+                <p>No courses available currently.</p>
             </div>
         <?php endif; ?>
     </div>
 </div>
-
-<script>
-function viewCourse(courseId) {
-    // Implement course viewing logic
-    alert('Course viewing feature coming soon! Course ID: ' + courseId);
-}
-</script>
 
 <?php include 'includes/user_footer.php'; ?>
