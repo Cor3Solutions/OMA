@@ -62,7 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Handle role-specific data
                     if ($role === 'member') {
                         $current_khan_level = isset($_POST['current_khan_level']) ? (int) $_POST['current_khan_level'] : 1;
-                        $khan_color = isset($_POST['khan_color']) ? sanitize($_POST['khan_color']) : '';
+                        
+                        // Get khan color from database based on level
+                        $color_result = $conn->query("SELECT color_name FROM khan_colors WHERE khan_level = $current_khan_level");
+                        $khan_color = '';
+                        if ($color_result && $color_row = $color_result->fetch_assoc()) {
+                            $khan_color = $color_row['color_name'];
+                        }
+                        
                         $date_joined = !empty($_POST['date_joined']) ? $_POST['date_joined'] : date('Y-m-d');
                         $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
                         $instructor_id = !empty($_POST['instructor_id']) ? (int) $_POST['instructor_id'] : null;
@@ -169,7 +176,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Update role-specific data
                     if ($role === 'member') {
                         $current_khan_level = isset($_POST['current_khan_level']) ? (int) $_POST['current_khan_level'] : 1;
-                        $khan_color = isset($_POST['khan_color']) ? sanitize($_POST['khan_color']) : '';
+                        
+                        // Get khan color from database based on level
+                        $color_result = $conn->query("SELECT color_name FROM khan_colors WHERE khan_level = $current_khan_level");
+                        $khan_color = '';
+                        if ($color_result && $color_row = $color_result->fetch_assoc()) {
+                            $khan_color = $color_row['color_name'];
+                        }
+                        
                         $date_joined = !empty($_POST['date_joined']) ? $_POST['date_joined'] : date('Y-m-d');
                         $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
                         $instructor_id = !empty($_POST['instructor_id']) ? (int) $_POST['instructor_id'] : null;
@@ -229,11 +243,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $check = $conn->query("SELECT id FROM instructors WHERE user_id = $id");
                         if ($check && $check->num_rows > 0) {
                             // Update existing
-    $stmt = $conn->prepare("UPDATE instructors SET name=?, photo_path=?, khan_level=?, title=?, location=?, specialization=?, bio=?, facebook_url=?, email=?, phone=?, display_order=?, status=? WHERE user_id=?");
-    
-    // FIX: Changed type string to "ssssssssssisi" (13 chars) to match the 13 variables
-    // 10 strings (name -> phone), 1 int (display_order), 1 string (status), 1 int (id)
-    $stmt->bind_param("ssssssssssisi", $name, $photo_path, $khan_level, $title, $location, $specialization, $bio, $facebook_url, $email, $phone, $display_order, $status, $id);
+                            $stmt = $conn->prepare("UPDATE instructors SET name=?, photo_path=?, khan_level=?, title=?, location=?, specialization=?, bio=?, facebook_url=?, email=?, phone=?, display_order=?, status=? WHERE user_id=?");
+                            $stmt->bind_param("ssssssssssisi", $name, $photo_path, $khan_level, $title, $location, $specialization, $bio, $facebook_url, $email, $phone, $display_order, $status, $id);
                         } else {
                             // Create new
                             $stmt = $conn->prepare("INSERT INTO instructors (user_id, name, photo_path, khan_level, title, location, specialization, bio, facebook_url, email, phone, display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -320,6 +331,9 @@ $users = $conn->query("
 // Get instructors for dropdown
 $instructors = $conn->query("SELECT id, name FROM instructors WHERE status = 'active' ORDER BY name");
 
+// Get khan colors for automatic mapping
+$khan_colors = $conn->query("SELECT khan_level, color_name, hex_color FROM khan_colors ORDER BY khan_level ASC");
+
 include 'includes/admin_header.php';
 ?>
 
@@ -340,7 +354,7 @@ include 'includes/admin_header.php';
     </div>
 
     <div class="info-box" style="background: #e3f2fd; border-left: 4px solid #1976d2; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
-        <strong><i class="fas fa-info-circle"></i> Tip:</strong> Select a role when creating a user to automatically show the relevant form fields.
+        <strong><i class="fas fa-info-circle"></i> Tip:</strong> Select a role when creating a user to automatically show the relevant form fields. Khan colors are automatically assigned based on level.
     </div>
 
     <div class="table-responsive">
@@ -531,11 +545,29 @@ include 'includes/admin_header.php';
                 <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label">Current Khan Level *</label>
-                        <input type="number" name="current_khan_level" class="form-input" min="1" max="16" value="1">
+                        <select name="current_khan_level" id="add_current_khan_level" class="form-select" onchange="updateKhanColor('add')">
+                            <?php for ($i = 1; $i <= 16; $i++): ?>
+                                <option value="<?php echo $i; ?>" <?php echo $i == 1 ? 'selected' : ''; ?>>Khan <?php echo $i; ?></option>
+                            <?php endfor; ?>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Khan Color/Band</label>
-                        <input type="text" name="khan_color" class="form-input" placeholder="e.g., White, Yellow, Green">
+                        <label class="form-label">Khan Color/Band (Auto-filled)</label>
+                        <div style="position: relative;">
+                            <input type="text" 
+                                   name="khan_color" 
+                                   id="add_khan_color_display"
+                                   class="form-input"
+                                   value="White"
+                                   readonly
+                                   style="padding-left: 45px; background-color: #f5f5f5; cursor: not-allowed;">
+                            <div id="add_color_indicator" 
+                                 style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 25px; height: 25px; border-radius: 50%; border: 2px solid #999; background-color: #FFFFFF;">
+                            </div>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 0.25rem;">
+                            Auto-assigned based on Khan Level
+                        </small>
                     </div>
                 </div>
                 <div class="form-grid">
@@ -602,7 +634,6 @@ include 'includes/admin_header.php';
 </div>
 
 <style>
-    /* ... (CSS REMAINS THE SAME) ... */
     .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .modal-content { background-color: #fefefe; margin: 2% auto; padding: 2rem; border-radius: 8px; width: 95%; max-width: 1000px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideDown 0.3s; }
@@ -617,12 +648,45 @@ include 'includes/admin_header.php';
 </style>
 
 <script>
-    // ... (Add Modal functions remain the same) ...
+    // Khan color mapping from database
+    const khanColorMap = {
+        <?php 
+        $khan_colors->data_seek(0);
+        $color_map = [];
+        while($kc = $khan_colors->fetch_assoc()) {
+            $color_map[] = $kc['khan_level'] . ": { name: '" . addslashes($kc['color_name']) . "', hex: '" . $kc['hex_color'] . "' }";
+        }
+        echo implode(",\n        ", $color_map);
+        ?>
+    };
+
+    // Update khan color when level changes
+    function updateKhanColor(prefix) {
+        const level = document.getElementById(prefix + '_current_khan_level').value;
+        const colorDisplay = document.getElementById(prefix + '_khan_color_display');
+        const colorIndicator = document.getElementById(prefix + '_color_indicator');
+        
+        if (khanColorMap[level]) {
+            colorDisplay.value = khanColorMap[level].name;
+            colorIndicator.style.backgroundColor = khanColorMap[level].hex;
+            
+            // Add border for light colors for better visibility
+            if (['#FFFFFF', '#FFFACD', '#90EE90', '#87CEEB', '#D2B48C', '#FFB6C1'].includes(khanColorMap[level].hex)) {
+                colorIndicator.style.border = '2px solid #999';
+            } else {
+                colorIndicator.style.border = '2px solid #ddd';
+            }
+        }
+    }
+
     function openAddModal() {
         document.getElementById('addModal').style.display = 'block';
         document.getElementById('addForm').reset();
         toggleRoleFields('add');
+        // Initialize khan color on modal open
+        setTimeout(() => updateKhanColor('add'), 100);
     }
+    
     function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
     function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
@@ -643,6 +707,10 @@ include 'includes/admin_header.php';
             instructorFields.style.display = 'block';
         } else if (role === 'member') {
             memberFields.style.display = 'block';
+            // Update khan color when member role is selected
+            if (prefix === 'add') {
+                setTimeout(() => updateKhanColor('add'), 100);
+            }
         }
     }
 
@@ -652,12 +720,10 @@ include 'includes/admin_header.php';
         document.getElementById('edit_loading').style.display = 'block';
         document.getElementById('edit_content').style.display = 'none';
 
-        // Check path consistency: if file is in /admin/ajax/ use that path.
         fetch('ajax/get_user_data.php?id=' + userId)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // FIX: Pass instructors_list explicitly!
                     populateEditForm(data.user, data.instructors_list);
                 } else {
                     alert('Error loading user data: ' + (data.message || 'Unknown error'));
@@ -671,20 +737,21 @@ include 'includes/admin_header.php';
             });
     }
 
-    // FIX: Updated function signature to accept instructorsList
     function populateEditForm(user, instructorsList) {
         const content = document.getElementById('edit_content');
         
-        // Ensure date safety
         const joinedDate = user.member_data?.date_joined ? user.member_data.date_joined.split(' ')[0] : '';
         const promotedDate = user.member_data?.date_promoted ? user.member_data.date_promoted.split(' ')[0] : '';
 
-        // Generate dropdown options safely
         const instructorOptions = instructorsList.map(inst => `
             <option value="${inst.id}" ${user.member_data?.instructor_id == inst.id ? 'selected' : ''}>
                 ${escapeHtml(inst.name)}
             </option>
         `).join('');
+
+        // Get current khan color info
+        const currentLevel = user.member_data?.current_khan_level || 1;
+        const currentColorInfo = khanColorMap[currentLevel] || { name: 'White', hex: '#FFFFFF' };
 
         let html = `
         <div class="form-section">
@@ -795,11 +862,29 @@ include 'includes/admin_header.php';
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Current Khan Level *</label>
-                    <input type="number" name="current_khan_level" class="form-input" min="1" max="16" value="${user.member_data?.current_khan_level || 1}">
+                    <select name="current_khan_level" id="edit_current_khan_level" class="form-select" onchange="updateKhanColor('edit')">
+                        <?php for ($i = 1; $i <= 16; $i++): ?>
+                            <option value="<?php echo $i; ?>" ${currentLevel == <?php echo $i; ?> ? 'selected' : ''}>Khan <?php echo $i; ?></option>
+                        <?php endfor; ?>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Khan Color/Band</label>
-                    <input type="text" name="khan_color" class="form-input" value="${escapeHtml(user.member_data?.khan_color || '')}">
+                    <label class="form-label">Khan Color/Band (Auto-filled)</label>
+                    <div style="position: relative;">
+                        <input type="text" 
+                               name="khan_color" 
+                               id="edit_khan_color_display"
+                               class="form-input"
+                               value="${currentColorInfo.name}"
+                               readonly
+                               style="padding-left: 45px; background-color: #f5f5f5; cursor: not-allowed;">
+                        <div id="edit_color_indicator" 
+                             style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 25px; height: 25px; border-radius: 50%; border: 2px solid #999; background-color: ${currentColorInfo.hex};">
+                        </div>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">
+                        Auto-assigned based on Khan Level
+                    </small>
                 </div>
             </div>
             
@@ -852,32 +937,11 @@ include 'includes/admin_header.php';
         return div.innerHTML;
     }
 
-    // ... (Filter and Event Listener logic remains the same) ...
-    document.getElementById('searchInput').addEventListener('input', filterTable);
-    document.getElementById('roleFilter').addEventListener('change', filterTable);
-    document.getElementById('statusFilter').addEventListener('change', filterTable);
-
-    function filterTable() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const roleFilter = document.getElementById('roleFilter').value;
-        const statusFilter = document.getElementById('statusFilter').value;
-        const rows = document.querySelectorAll('.data-table tbody tr');
-
-        rows.forEach(function (row) {
-            const text = row.textContent.toLowerCase();
-            const rowRole = row.getAttribute('data-role');
-            const rowStatus = row.getAttribute('data-status');
-            const matchesSearch = text.includes(searchTerm);
-            const matchesRole = !roleFilter || rowRole === roleFilter;
-            const matchesStatus = !statusFilter || rowStatus === statusFilter;
-            row.style.display = (matchesSearch && matchesRole && matchesStatus) ? '' : 'none';
-        });
-    }
-
     window.onclick = function (event) {
         if (event.target == document.getElementById('addModal')) closeAddModal();
         if (event.target == document.getElementById('editModal')) closeEditModal();
     }
+    
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeAddModal();

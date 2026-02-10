@@ -121,7 +121,7 @@ include 'includes/user_header.php';
             <?php 
             // Tile the user's email 60 times across the screen
             for($i=0; $i<60; $i++) {
-                echo "<div class='watermark-text'>$user_identity <br> DO NOT SHARE</div>";
+                echo "<div class='watermark-text'>$user_identity <br>DO NOT SHARE, FOR PRIVATE USE ONLY</div>";
             }
             ?>
         </div>

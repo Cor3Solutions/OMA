@@ -15,7 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = sanitize($_POST['email']);
         $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
         $current_khan_level = (int) $_POST['current_khan_level'];
-        $khan_color = isset($_POST['khan_color']) ? sanitize($_POST['khan_color']) : '';
+        
+        // Get khan color from database based on level
+        $color_result = $conn->query("SELECT color_name FROM khan_colors WHERE khan_level = $current_khan_level");
+        $khan_color = '';
+        if ($color_result && $color_row = $color_result->fetch_assoc()) {
+            $khan_color = $color_row['color_name'];
+        }
+        
         $date_joined = $_POST['date_joined'];
         $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
         $instructor_id = !empty($_POST['instructor_id']) ? (int) $_POST['instructor_id'] : null;
@@ -39,7 +46,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = sanitize($_POST['email']);
         $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
         $current_khan_level = (int) $_POST['current_khan_level'];
-        $khan_color = isset($_POST['khan_color']) ? sanitize($_POST['khan_color']) : '';
+        
+        // Get khan color from database based on level
+        $color_result = $conn->query("SELECT color_name FROM khan_colors WHERE khan_level = $current_khan_level");
+        $khan_color = '';
+        if ($color_result && $color_row = $color_result->fetch_assoc()) {
+            $khan_color = $color_row['color_name'];
+        }
+        
         $date_joined = $_POST['date_joined'];
         $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
         $instructor_id = !empty($_POST['instructor_id']) ? (int) $_POST['instructor_id'] : null;
@@ -82,6 +96,9 @@ $instructors = $conn->query("SELECT id, name FROM instructors WHERE status = 'ac
 // Get users for dropdown
 $available_users = $conn->query("SELECT id, name, email FROM users WHERE role = 'member' ORDER BY name");
 
+// Get khan colors for automatic mapping
+$khan_colors = $conn->query("SELECT khan_level, color_name, hex_color FROM khan_colors ORDER BY khan_level ASC");
+
 include 'includes/admin_header.php';
 ?>
 
@@ -96,9 +113,14 @@ include 'includes/admin_header.php';
 <div class="admin-section">
     <div class="section-header">
         <h2><i class="fas fa-user-graduate"></i> Khan Members Management</h2>
-        <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
-            <i class="fas fa-plus-circle"></i> Add New Member
-        </button>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="add_khan_members.php" class="btn btn-success">
+                <i class="fas fa-user-plus"></i> Add Member (with Duplicate Check)
+            </a>
+            <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
+                <i class="fas fa-plus-circle"></i> Quick Add Member
+            </button>
+        </div>
     </div>
 
     <div class="filters-row"
@@ -196,7 +218,7 @@ include 'includes/admin_header.php';
                                 </form>
                                 <a href="member_training_history.php?member_id=<?php echo $member['id']; ?>"
                                     class="btn btn-sm btn-success" title="View Training History">
-                                    <i class="fas fa-history"></i> History
+                                    <i class="fas fa-history"></i>
                                 </a>
                             </div>
                         </td>
@@ -211,13 +233,14 @@ include 'includes/admin_header.php';
 <div id="addModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="document.getElementById('addModal').style.display='none'">&times;</span>
-        <h2><i class="fas fa-user-plus"></i> Add New Khan Member</h2>
+        <h2><i class="fas fa-user-plus"></i> Quick Add Khan Member</h2>
 
         <div class="alert"
-            style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
-            <strong><i class="fas fa-lightbulb"></i> Tip:</strong> To create a member with a user account, use the
-            <a href="manage_users_centralized.php" style="color: #1976d2; font-weight: bold;">Centralized User
-                Management</a> page instead.
+            style="background: #e3f2fd; border-left: 4px solid #1976d2; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
+            <strong><i class="fas fa-lightbulb"></i> Tip:</strong> For better duplicate detection, use the
+            <a href="add_khan_member.php" style="color: #1976d2; font-weight: bold;">Add Member (with Duplicate Check)</a> page.
+            To create a member with a user account, use
+            <a href="manage_users_centralized.php" style="color: #1976d2; font-weight: bold;">Centralized User Management</a>.
         </div>
 
         <form method="POST">
@@ -256,15 +279,32 @@ include 'includes/admin_header.php';
 
                 <div class="form-group">
                     <label class="form-label">Current Khan Level *</label>
-                    <input type="number" name="current_khan_level" class="form-input" min="1" max="16" value="1"
-                        required>
+                    <select name="current_khan_level" id="add_current_khan_level" class="form-select" required onchange="updateKhanColor('add')">
+                        <?php for ($i = 1; $i <= 16; $i++): ?>
+                            <option value="<?php echo $i; ?>" <?php echo $i == 1 ? 'selected' : ''; ?>>Khan <?php echo $i; ?></option>
+                        <?php endfor; ?>
+                    </select>
                 </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label class="form-label">Khan Color/Band</label>
-                    <input type="text" name="khan_color" class="form-input" placeholder="e.g., White, Yellow, Green">
+                    <label class="form-label">Khan Color/Band (Auto-filled)</label>
+                    <div style="position: relative;">
+                        <input type="text" 
+                               name="khan_color" 
+                               id="add_khan_color_display"
+                               class="form-input"
+                               value="White"
+                               readonly
+                               style="padding-left: 45px; background-color: #f5f5f5; cursor: not-allowed;">
+                        <div id="add_color_indicator" 
+                             style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 25px; height: 25px; border-radius: 50%; border: 2px solid #999; background-color: #FFFFFF;">
+                        </div>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">
+                        Color is automatically assigned based on Khan Level
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -374,15 +414,31 @@ include 'includes/admin_header.php';
 
                 <div class="form-group">
                     <label class="form-label">Current Khan Level *</label>
-                    <input type="number" name="current_khan_level" id="edit_current_khan_level" class="form-input"
-                        min="1" max="16" required>
+                    <select name="current_khan_level" id="edit_current_khan_level" class="form-select" required onchange="updateKhanColor('edit')">
+                        <?php for ($i = 1; $i <= 16; $i++): ?>
+                            <option value="<?php echo $i; ?>">Khan <?php echo $i; ?></option>
+                        <?php endfor; ?>
+                    </select>
                 </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label class="form-label">Khan Color/Band</label>
-                    <input type="text" name="khan_color" id="edit_khan_color" class="form-input">
+                    <label class="form-label">Khan Color/Band (Auto-filled)</label>
+                    <div style="position: relative;">
+                        <input type="text" 
+                               name="khan_color" 
+                               id="edit_khan_color_display"
+                               class="form-input"
+                               readonly
+                               style="padding-left: 45px; background-color: #f5f5f5; cursor: not-allowed;">
+                        <div id="edit_color_indicator" 
+                             style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 25px; height: 25px; border-radius: 50%; border: 2px solid #999; background-color: #FFFFFF;">
+                        </div>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">
+                        Color is automatically assigned based on Khan Level
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -529,9 +585,50 @@ include 'includes/admin_header.php';
         background: #2196f3;
         color: white;
     }
+
+    .badge-refresher {
+        background: #ff9800;
+        color: white;
+    }
 </style>
 
 <script>
+    // Khan color mapping from database
+    const khanColorMap = {
+        <?php 
+        $khan_colors->data_seek(0);
+        $color_map = [];
+        while($kc = $khan_colors->fetch_assoc()) {
+            $color_map[] = $kc['khan_level'] . ": { name: '" . addslashes($kc['color_name']) . "', hex: '" . $kc['hex_color'] . "' }";
+        }
+        echo implode(",\n        ", $color_map);
+        ?>
+    };
+
+    // Update khan color when level changes
+    function updateKhanColor(prefix) {
+        const level = document.getElementById(prefix + '_current_khan_level').value;
+        const colorDisplay = document.getElementById(prefix + '_khan_color_display');
+        const colorIndicator = document.getElementById(prefix + '_color_indicator');
+        
+        if (khanColorMap[level]) {
+            colorDisplay.value = khanColorMap[level].name;
+            colorIndicator.style.backgroundColor = khanColorMap[level].hex;
+            
+            // Add border for light colors for better visibility
+            if (['#FFFFFF', '#FFFACD', '#90EE90', '#87CEEB', '#D2B48C', '#FFB6C1'].includes(khanColorMap[level].hex)) {
+                colorIndicator.style.border = '2px solid #999';
+            } else {
+                colorIndicator.style.border = '2px solid #ddd';
+            }
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateKhanColor('add');
+    });
+
     function editMember(member) {
         document.getElementById('edit_id').value = member.id;
         document.getElementById('edit_user_id').value = member.user_id || '';
@@ -539,13 +636,15 @@ include 'includes/admin_header.php';
         document.getElementById('edit_email').value = member.email;
         document.getElementById('edit_phone').value = member.phone || '';
         document.getElementById('edit_current_khan_level').value = member.current_khan_level;
-        document.getElementById('edit_khan_color').value = member.khan_color || '';
         document.getElementById('edit_date_joined').value = member.date_joined;
         document.getElementById('edit_date_promoted').value = member.date_promoted || '';
         document.getElementById('edit_instructor_id').value = member.instructor_id || '';
         document.getElementById('edit_training_location').value = member.training_location || '';
         document.getElementById('edit_status').value = member.status;
         document.getElementById('edit_notes').value = member.notes || '';
+
+        // Update the color display based on current level
+        updateKhanColor('edit');
 
         document.getElementById('editModal').style.display = 'block';
     }

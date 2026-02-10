@@ -31,61 +31,68 @@ $basePath = $isInPages ? '../' : '';
 </head>
 
 <body>
-    <header class="site-header">
-        <div class="container">
-            <div class="header-content">
-                <a href="<?php echo $basePath; ?>index.php" class="logo">
-                    <img src="<?php echo $basePath; ?>assets/images/oma.png" alt="Oriental Muayboran Academy"
-                        class="logo-img" style="height: 70px; width: auto;">
-                </a>
+    <header class="site-header" style="width: 100%;">
+    <div class="container">
+        <div class="header-content" style="display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap;">
+            
+            <a href="<?php echo $basePath; ?>index.php" class="logo">
+                <img src="<?php echo $basePath; ?>assets/images/oma.png" alt="Oriental Muayboran Academy"
+                    class="logo-img" 
+                    style="height: 70px; width: auto; filter: drop-shadow(0 0 15px white);">
+            </a>
 
-                <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
 
-                <nav class="main-nav" id="mainNav">
-                    <ul class="nav-list">
-                        <li class="nav-item">
-                            <a href="<?php echo SITE_URL; ?>/index.php"
-                                class="nav-link <?php echo $current_page === 'index' ? 'active' : ''; ?>">Home</a>
-                        </li>
+            <nav class="main-nav" id="mainNav">
+                <ul class="nav-list" style="display: flex; list-style: none; margin: 0; padding: 0;">
+                    <li class="nav-item">
+                        <a href="<?php echo SITE_URL; ?>/index.php"
+                            class="nav-link <?php echo $current_page === 'index' ? 'active' : ''; ?>">Home</a>
+                    </li>
 
-                        <li class="nav-item has-dropdown">
-                            <a href="<?php echo SITE_URL; ?>/pages/about.php" class="nav-link">About</a>
-                            <ul class="dropdown">
-                                <li><a href="<?php echo SITE_URL; ?>/pages/mvc.php">Mission, Vision & Core Values</a></li>
-                                <li><a href="<?php echo SITE_URL; ?>/pages/lineage.php">Lineage</a></li>
-                            </ul>
-                        </li>
+                    <li class="nav-item has-dropdown">
+                        <a href="<?php echo SITE_URL; ?>/pages/about.php" class="nav-link">About</a>
+                        <ul class="dropdown">
+                            <li><a href="<?php echo SITE_URL; ?>/pages/mvc.php">Mission, Vision & Core Values</a></li>
+                            <li><a href="<?php echo SITE_URL; ?>/pages/lineage.php">Lineage</a></li>
+                        </ul>
+                    </li>
 
-                        <li class="nav-item has-dropdown">
-                            <a href="<?php echo SITE_URL; ?>/pages/course.php" class="nav-link">Programs</a>
-                        </li>
+                    <li class="nav-item has-dropdown">
+                        <a href="<?php echo SITE_URL; ?>/pages/course.php" class="nav-link">Programs</a>
+                    </li>
 
-                        <li class="nav-item has-dropdown">
-                            <a href="<?php echo SITE_URL; ?>/pages/membership-benefits.php" class="nav-link">Khan
-                                Community</a>
-                            <ul class="dropdown">
-                                <li><a href="<?php echo SITE_URL; ?>/pages/khan-grading.php">Khan Grading</a></li>
-                                <li><a href="<?php echo SITE_URL; ?>/pages/khan-members.php">Khan Members</a></li>
-                             </ul>
-                        </li>
+                    <li class="nav-item has-dropdown">
+                        <a href="<?php echo SITE_URL; ?>/pages/membership-benefits.php" class="nav-link">Khan Community</a>
+                        <ul class="dropdown">
+                            <li><a href="<?php echo SITE_URL; ?>/pages/khan-grading.php">Khan Grading</a></li>
+                            <li><a href="<?php echo SITE_URL; ?>/pages/khan-members.php">Khan Members</a></li>
+                         </ul>
+                    </li>
 
-                        <li class="nav-item">
-                            <a href="<?php echo SITE_URL; ?>/pages/events.php"
-                                class="nav-link <?php echo $current_page === 'events' ? 'active' : ''; ?>">Events</a>
-                        </li>
+                    <li class="nav-item">
+                        <a href="<?php echo SITE_URL; ?>/pages/events.php"
+                            class="nav-link <?php echo $current_page === 'events' ? 'active' : ''; ?>">Events</a>
+                    </li>
 
-                        <li class="nav-item">
-                            <a href="<?php echo SITE_URL; ?>/pages/contact.php"
-                                class="nav-link <?php echo $current_page === 'contact' ? 'active' : ''; ?>">Contact</a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
+                    <li class="nav-item">
+                        <a href="<?php echo SITE_URL; ?>/pages/contact.php"
+                            class="nav-link <?php echo $current_page === 'contact' ? 'active' : ''; ?>">Contact</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <a href="<?php echo $basePath; ?>index.php" class="logo">
+                <img src="<?php echo $basePath; ?>assets/images/skss.png" alt="Oriental Muayboran Academy"
+                    class="logo-img" 
+                    style="height: 70px; width: auto; filter: drop-shadow(0 0 15px white);">
+            </a>
         </div>
-    </header>
+    </div>
+</header>
 
     <main class="main-content">

@@ -7,23 +7,49 @@ $conn = getDbConnection();
 $affiliates = $conn->query("SELECT * FROM affiliates WHERE status = 'active' ORDER BY display_order ASC");
 ?>
 
-<!-- Hero Section -->
-<section class="hero-section">
-    <div class="hero-background">
-        <img src="assets/images/cover1.png" alt="Muayboran Training at Oriental Muayboran Academy">
-        <div class="hero-overlay"></div>
+<section class="hero-section" style="position: relative; overflow: hidden; min-height: 80vh; display: flex; align-items: center; background: #000;">
+    <div class="hero-background" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
+        <img src="assets/images/cover1.png" alt="Muayboran Training" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.5;">
+        <div class="hero-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.4), rgba(0,0,0,0.8));"></div>
     </div>
 
-    <div class="hero-content">
-        <h2 class="hero-subtitle">Sit Kru Sane Siamyout Philippines</h2>
-        <h1 class="hero-title">Oriental Muayboran Academy</h1>
-        <p class="hero-description">
-            An embodiment of martial tradition and discipline.<br>
-            Student of Teacher Sane – Preserving ancient Thai martial arts.
-        </p>
-        <div class="hero-buttons">
-            <a href="pages/membership-benefits.php" class="btn btn-primary">Become a Member</a>
-            <a href="pages/about.php" class="btn btn-outline">Learn More</a>
+    <div class="hero-content" style="position: relative; z-index: 2; width: 100%; padding: 60px 0;">
+        <div style="display: flex; flex-direction: row; align-items: stretch; justify-content: center; gap: 60px; width: 95%; max-width: 1600px; margin: 0 auto;">
+            
+            <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 140px; height: 280px; border: 3px solid #D4AF37; padding: 5px; background: rgba(212, 175, 55, 0.1); box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);">
+                    <img src="assets/images/flag-ph.png" alt="PH Flag" style="width: 100%; height: 100%; object-fit: cover; filter: brightness(1.1);">
+                </div>
+                <div style="color: #D4AF37; margin-top: 10px; font-weight: bold; letter-spacing: 2px; font-size: 0.9rem;">PILIPINAS</div>
+            </div>
+
+            <div style="text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                <h2 style="color: #D4AF37; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 10px; font-size: 1.2rem;">Traditional Martial Arts</h2>
+                <h1 style="margin: 0; font-size: 4.5rem; color: #fff; text-transform: uppercase; line-height: 1; text-shadow: 0 5px 15px rgba(0,0,0,1);">Oriental <span style="color: #D4AF37;">Muayboran</span> Academy</h1>
+                
+                <div style="display: flex; align-items: center; justify-content: center; margin: 25px 0;">
+                    <div style="height: 1px; width: 100px; background: linear-gradient(to left, #D4AF37, transparent);"></div>
+                    <div style="color: #fff; padding: 0 15px; font-style: italic; letter-spacing: 1px;">Sit Kru Sane Siamyout</div>
+                    <div style="height: 1px; width: 100px; background: linear-gradient(to right, #D4AF37, transparent);"></div>
+                </div>
+
+                <p style="margin: 0 auto 40px; font-size: 1.3rem; color: #ddd; max-width: 700px; line-height: 1.6;">
+                    An embodiment of martial tradition and discipline. Preserving the ancient Thai arts under the lineage of Teacher Sane.
+                </p>
+                
+                <div class="hero-buttons" style="display: flex; justify-content: center; gap: 20px;">
+                    <a href="pages/membership-benefits.php" style="background: #D4AF37; color: #000; padding: 18px 40px; text-decoration: none; font-weight: bold; text-transform: uppercase; border-radius: 2px; transition: 0.3s;">Become a Member</a>
+                    <a href="pages/about.php" style="border: 2px solid #fff; color: #fff; padding: 16px 40px; text-decoration: none; font-weight: bold; text-transform: uppercase; border-radius: 2px; transition: 0.3s;">Learn More</a>
+                </div>
+            </div>
+
+            <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 140px; height: 280px; border: 3px solid #D4AF37; padding: 5px; background: rgba(212, 175, 55, 0.1); box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);">
+                    <img src="assets/images/flag-thai.png" alt="TH Flag" style="width: 100%; height: 100%; object-fit: cover; filter: brightness(1.1);">
+                </div>
+                <div style="color: #D4AF37; margin-top: 10px; font-weight: bold; letter-spacing: 2px; font-size: 0.9rem;">THAILAND</div>
+            </div>
+
         </div>
     </div>
 </section>
@@ -110,7 +136,7 @@ $affiliates = $conn->query("SELECT * FROM affiliates WHERE status = 'active' ORD
     </div>
     </div>
 </section>
- 
+
 
 <!-- Social Media Section -->
 <section class="section bg-light">

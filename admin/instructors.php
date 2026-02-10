@@ -156,8 +156,7 @@ include 'includes/admin_header.php';
                     <th>Khan Level</th>
                     <th>Title/Position</th>
                     <th>Location</th>
-                    <th>Contact</th>
-                    <th>Display Order</th>
+                    <th>Contact</th> 
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -203,8 +202,7 @@ include 'includes/admin_header.php';
                                     <?php echo htmlspecialchars($instructor['phone']); ?></small>
                             <?php endif; ?>
                         </td>
-                        <td><?php echo $instructor['display_order']; ?></td>
-                        <td>
+                         <td>
                             <span class="badge badge-<?php echo $instructor['status']; ?>"
                                 style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">
                                 <?php echo ucfirst($instructor['status']); ?>
