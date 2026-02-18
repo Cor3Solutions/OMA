@@ -133,6 +133,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_member'])) {
             $stmt->bind_param("isssississss", $user_id, $full_name, $email, $phone, $current_khan_level, $khan_color, $date_joined, $date_promoted, $instructor_id, $training_location, $status, $notes);
             
             if ($stmt->execute()) {
+                $new_member_id = $conn->insert_id;
+                // Write initial training history record so the history page isn't empty
+                $hist_date = !empty($date_promoted) ? $date_promoted : $date_joined;
+                $hist_stmt = $conn->prepare("INSERT INTO khan_training_history (member_id, khan_level, training_date, certified_date, instructor_id, location, notes, certificate_number, status) VALUES (?, ?, ?, ?, ?, ?, ?, '', 'certified')");
+                $hist_stmt->bind_param("iississ", $new_member_id, $current_khan_level, $hist_date, $hist_date, $instructor_id, $training_location, $notes);
+                $hist_stmt->execute();
+                $hist_stmt->close();
                 $success = 'Khan member added successfully!';
                 // Clear form data after successful submission
                 $_POST = [];

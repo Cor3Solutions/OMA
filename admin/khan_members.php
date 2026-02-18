@@ -10,19 +10,18 @@ $error = '';
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_member'])) {
-        $user_id = !empty($_POST['user_id']) ? (int) $_POST['user_id'] : null;
         $full_name = sanitize($_POST['full_name']);
         $email = sanitize($_POST['email']);
         $phone = isset($_POST['phone']) ? sanitize($_POST['phone']) : '';
         $current_khan_level = (int) $_POST['current_khan_level'];
-        
+
         // Get khan color from database based on level
         $color_result = $conn->query("SELECT color_name FROM khan_colors WHERE khan_level = $current_khan_level");
         $khan_color = '';
         if ($color_result && $color_row = $color_result->fetch_assoc()) {
             $khan_color = $color_row['color_name'];
         }
-        
+
         $date_joined = $_POST['date_joined'];
         $date_promoted = !empty($_POST['date_promoted']) ? $_POST['date_promoted'] : null;
         $instructor_id = !empty($_POST['instructor_id']) ? (int) $_POST['instructor_id'] : null;
@@ -30,13 +29,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'];
         $notes = isset($_POST['notes']) ? sanitize($_POST['notes']) : '';
 
+        // ── Auto-create user account ──────────────────────────────────
+        // If a user_id was explicitly chosen in the dropdown, use it.
+        // Otherwise, check if this email already has an account.
+        // If not, create one automatically.
+        $user_id = !empty($_POST['user_id']) ? (int) $_POST['user_id'] : null;
+
+        if (!$user_id && !empty($email)) {
+            // Check if a user with this email already exists
+            $ucheck = $conn->query("SELECT id FROM users WHERE email = '" . $conn->real_escape_string($email) . "' LIMIT 1");
+            if ($ucheck && $ucheck->num_rows > 0) {
+                $user_id = (int)$ucheck->fetch_assoc()['id'];
+            } else {
+                // Generate next serial number
+                $sres = $conn->query("SELECT serial_number FROM users WHERE serial_number LIKE 'OMA-%' ORDER BY serial_number DESC LIMIT 1");
+                $slast = $sres ? $sres->fetch_assoc() : null;
+                $snext = 1;
+                if ($slast && preg_match('/OMA-0*(\d+)/', $slast['serial_number'], $sm)) {
+                    $snext = (int)$sm[1] + 1;
+                }
+                $serial = 'OMA-' . str_pad($snext, 3, '0', STR_PAD_LEFT);
+
+                // Default password: oma + firstname + lastname (all lowercase)
+                $parts = array_values(array_filter(explode(' ', strtolower(trim($full_name)))));
+                $first = $parts[0] ?? 'member';
+                $last  = count($parts) > 1 ? $parts[count($parts) - 1] : '';
+                $default_password = password_hash('oma' . $first . $last, PASSWORD_DEFAULT);
+
+                $ustmt = $conn->prepare("INSERT INTO users (serial_number, name, email, phone, password, role, status, khan_level) VALUES (?, ?, ?, ?, ?, 'member', ?, ?)");
+                $khan_level_label = 'Khan ' . $current_khan_level;
+                $ustmt->bind_param("sssssss", $serial, $full_name, $email, $phone, $default_password, $status, $khan_level_label);
+                if ($ustmt->execute()) {
+                    $user_id = $conn->insert_id;
+                }
+                $ustmt->close();
+            }
+        }
+        // ─────────────────────────────────────────────────────────────
+
         $stmt = $conn->prepare("INSERT INTO khan_members (user_id, full_name, email, phone, current_khan_level, khan_color, date_joined, date_promoted, instructor_id, training_location, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("isssississss", $user_id, $full_name, $email, $phone, $current_khan_level, $khan_color, $date_joined, $date_promoted, $instructor_id, $training_location, $status, $notes);
 
         if ($stmt->execute()) {
-            $success = 'Khan member added successfully!';
+            $success = 'Khan member added successfully! A user account was automatically created.';
         } else {
-            $error = 'Failed to add khan member';
+            $error = 'Failed to add khan member: ' . $conn->error;
         }
         $stmt->close();
     } elseif (isset($_POST['edit_member'])) {
@@ -113,14 +150,9 @@ include 'includes/admin_header.php';
 <div class="admin-section">
     <div class="section-header">
         <h2><i class="fas fa-user-graduate"></i> Khan Members Management</h2>
-        <div style="display: flex; gap: 0.5rem;">
-            <a href="add_khan_members.php" class="btn btn-success">
-                <i class="fas fa-user-plus"></i> Add Member (with Duplicate Check)
-            </a>
-            <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
-                <i class="fas fa-plus-circle"></i> Quick Add Member
-            </button>
-        </div>
+        <a href="manual_encode.php" class="btn btn-primary">
+            <i class="fas fa-keyboard"></i> Encode Members
+        </a>
     </div>
 
     <div class="filters-row"

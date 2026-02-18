@@ -116,6 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 3. DELETE COURSE
     elseif (isset($_POST['delete_course'])) {
         $id = (int)$_POST['id'];
+        // Archive before delete
+        require_once 'includes/activity_helper.php';
+        $fullRow = $conn->query("SELECT * FROM course_materials WHERE id = $id")->fetch_assoc();
+        if ($fullRow) {
+            archiveRecord($conn, 'course_materials', $id, $fullRow['title'], $fullRow);
+            logActivity($conn, 'delete', 'course_materials', $id, $fullRow['title'], 'Category: '.$fullRow['category']);
+        }
         $result = $conn->query("SELECT file_path, thumbnail_path FROM course_materials WHERE id = $id");
         if ($course = $result->fetch_assoc()) {
             if (!empty($course['file_path']) && file_exists('../' . $course['file_path'])) unlink('../' . $course['file_path']);

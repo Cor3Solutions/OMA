@@ -284,6 +284,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id == $_SESSION['user_id']) {
             $error = 'You cannot delete your own account';
         } else {
+            // Archive before delete
+            require_once 'includes/activity_helper.php';
+            $fullRow = $conn->query("SELECT * FROM users WHERE id = $id")->fetch_assoc();
+            if ($fullRow) {
+                archiveRecord($conn, 'users', $id, $fullRow['name'].' ('.$fullRow['role'].')', $fullRow);
+                logActivity($conn, 'delete', 'users', $id, $fullRow['name'], 'Role: '.$fullRow['role'].' | Email: '.$fullRow['email']);
+            }
+
             $conn->begin_transaction();
 
             try {
@@ -470,9 +478,16 @@ include 'includes/admin_header.php';
                         <input type="tel" name="phone" class="form-input" placeholder="09XX XXX XXXX">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Password *</label>
-                        <input type="password" name="password" class="form-input" required minlength="6">
-                        <small style="color: #666;">Minimum 6 characters</small>
+                        <label class="form-label">Password</label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="text" name="password" id="add_password" class="form-input" 
+                                   placeholder="Auto-generated from name" readonly
+                                   style="background:#f5f5f5; font-family:monospace; letter-spacing:1px;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="copyPassword()" title="Copy password">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                        <small style="color:#888;">Format: <strong>oma</strong> + first name + last name (e.g. <em>omajuancruz</em>). Member can change after login.</small>
                     </div>
                 </div>
                 <div class="form-grid">
@@ -778,7 +793,7 @@ include 'includes/admin_header.php';
                 <div class="form-group">
                     <label class="form-label">New Password</label>
                     <input type="password" name="password" class="form-input" minlength="6">
-                    <small style="color: #666;">Leave empty to keep current</small>
+                    <small style="color: #666;">Leave empty to keep current password. Default format: <strong>oma</strong> + firstname + lastname</small>
                 </div>
             </div>
             
@@ -949,4 +964,37 @@ include 'includes/admin_header.php';
         }
     });
 </script>
+<script>
+// Auto-generate password when name is typed
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.querySelector('#addForm input[name="name"]');
+    if (nameInput) {
+        nameInput.addEventListener('input', function() {
+            generatePassword(this.value);
+        });
+    }
+});
+
+function generatePassword(fullName) {
+    const parts = fullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+        document.getElementById('add_password').value = '';
+        return;
+    }
+    const first = parts[0];
+    const last  = parts.length > 1 ? parts[parts.length - 1] : '';
+    document.getElementById('add_password').value = 'oma' + first + last;
+}
+
+function copyPassword() {
+    const pw = document.getElementById('add_password');
+    if (!pw.value) return;
+    navigator.clipboard.writeText(pw.value).then(() => {
+        const btn = pw.nextElementSibling;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i>', 1500);
+    });
+}
+</script>
+
 <?php include 'includes/admin_footer.php'; ?>

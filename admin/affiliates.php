@@ -87,6 +87,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 3. Delete Affiliate
     elseif (isset($_POST['delete_affiliate'])) {
         $id = (int)$_POST['id'];
+
+        // Archive before delete
+        require_once 'includes/activity_helper.php';
+        $fullRow = $conn->query("SELECT * FROM affiliates WHERE id = $id")->fetch_assoc();
+        if ($fullRow) {
+            archiveRecord($conn, 'affiliates', $id, $fullRow['name'], $fullRow);
+            logActivity($conn, 'delete', 'affiliates', $id, $fullRow['name'], $fullRow['contact_email']);
+        }
         
         $result = $conn->query("SELECT logo_path FROM affiliates WHERE id = $id");
         if ($affiliate = $result->fetch_assoc()) {

@@ -37,6 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
 // Delete Message
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_message'])) {
     $id = (int)$_POST['id'];
+    // Archive before delete
+    require_once 'includes/activity_helper.php';
+    $fullRow = $conn->query("SELECT * FROM contact_messages WHERE id = $id")->fetch_assoc();
+    if ($fullRow) {
+        archiveRecord($conn, 'contact_messages', $id, $fullRow['name'].' — '.$fullRow['subject'], $fullRow);
+        logActivity($conn, 'delete', 'contact_messages', $id, $fullRow['name'], 'Subject: '.$fullRow['subject']);
+    }
     if ($conn->query("DELETE FROM contact_messages WHERE id = $id")) {
         $success = 'Message deleted permanently.';
     } else {

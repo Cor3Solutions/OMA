@@ -93,6 +93,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['delete_instructor'])) {
         $id = (int) $_POST['id'];
 
+        // Archive before delete
+        require_once 'includes/activity_helper.php';
+        $fullRow = $conn->query("SELECT * FROM instructors WHERE id = $id")->fetch_assoc();
+        if ($fullRow) {
+            archiveRecord($conn, 'instructors', $id, $fullRow['name'], $fullRow);
+            logActivity($conn, 'delete', 'instructors', $id, $fullRow['name'], $fullRow['title'].' | '.$fullRow['location']);
+        }
+
         // Get photo path before deleting
         $result = $conn->query("SELECT photo_path FROM instructors WHERE id = $id");
         if ($instructor = $result->fetch_assoc()) {

@@ -114,7 +114,16 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <i class="fas fa-globe fa-fw"></i>
                     <span>View Site</span>
                 </a>
-
+                <a href="<?php echo SITE_URL; ?>/admin/activity_log.php"
+                    class="nav-item <?php echo $current_admin_page === 'activity_log' ? 'active' : ''; ?>">
+                    <i class="fas fa-history fa-fw"></i>
+                    <span>Activity Log</span>
+                </a>
+                <a href="<?php echo SITE_URL; ?>/admin/backup_database.php"
+                    class="nav-item <?php echo $current_admin_page === 'backup_database' ? 'active' : ''; ?>">
+                    <i class="fas fa-database fa-fw"></i>
+                    <span>Backup Database</span>
+                </a>
                 <a href="<?php echo SITE_URL; ?>/pages/logout.php" class="nav-item">
                     <i class="fas fa-sign-out-alt fa-fw"></i>
                     <span>Logout</span>
