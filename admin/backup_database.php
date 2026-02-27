@@ -283,24 +283,31 @@ include 'includes/admin_header.php';
     </form>
 </div>
 
-<!-- Tables Overview -->
+<!-- Tables Overview with Pagination -->
 <div class="backup-card">
-    <h3 style="margin-bottom: 1.2rem;"><i class="fas fa-list" style="color: #10b981; margin-right: 6px;"></i> Tables in Backup</h3>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 style="margin:0;"><i class="fas fa-list" style="color: #10b981; margin-right: 6px;"></i> Tables in Backup</h3>
+        <div style="display:flex; align-items:center; gap: 0.6rem;">
+            <input type="text" id="tableSearch" placeholder="Search tables..." 
+                style="padding: 0.4rem 0.8rem; border: 1px solid var(--admin-border); border-radius: 6px; background: var(--admin-card); color: var(--admin-text); font-size: 0.83rem; width: 180px;">
+            <span id="tableCount" style="color: var(--admin-text-muted); font-size: 0.82rem;"></span>
+        </div>
+    </div>
     <?php if (empty($table_data)): ?>
         <p style="color: var(--admin-text-muted);">No tables found in oma_database.</p>
     <?php else: ?>
     <div style="overflow-x: auto;">
-        <table class="backup-table">
+        <table class="backup-table" id="tablesTable">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:50px;">#</th>
                     <th>Table Name</th>
                     <th style="text-align:right;">Rows</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tablesBody">
                 <?php foreach ($table_data as $i => $t): ?>
-                <tr>
+                <tr data-name="<?php echo htmlspecialchars(strtolower($t['name'])); ?>">
                     <td style="color: var(--admin-text-muted);"><?php echo $i + 1; ?></td>
                     <td><code><?php echo htmlspecialchars($t['name']); ?></code></td>
                     <td style="text-align:right;"><span class="badge-blue"><?php echo number_format($t['rows']); ?></span></td>
@@ -309,8 +316,94 @@ include 'includes/admin_header.php';
             </tbody>
         </table>
     </div>
+
+    <!-- Pagination Controls -->
+    <div id="tablePagination" style="display:flex; align-items:center; justify-content:space-between; margin-top: 1rem; flex-wrap:wrap; gap:0.5rem;">
+        <span id="tablePageInfo" style="color: var(--admin-text-muted); font-size: 0.83rem;"></span>
+        <div style="display:flex; gap:0.4rem;" id="tablePageBtns"></div>
+    </div>
     <?php endif; ?>
 </div>
+
+<script>
+(function() {
+    const ROWS_PER_PAGE = 10;
+    const tbody = document.getElementById('tablesBody');
+    const pageInfo = document.getElementById('tablePageInfo');
+    const pageBtns = document.getElementById('tablePageBtns');
+    const searchInput = document.getElementById('tableSearch');
+    const tableCount = document.getElementById('tableCount');
+
+    let allRows = Array.from(tbody.querySelectorAll('tr'));
+    let filteredRows = [...allRows];
+    let currentPage = 1;
+
+    function renderPage() {
+        const total = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const start = (currentPage - 1) * ROWS_PER_PAGE;
+        const end = start + ROWS_PER_PAGE;
+
+        allRows.forEach(r => r.style.display = 'none');
+        filteredRows.slice(start, end).forEach(r => r.style.display = '');
+
+        pageInfo.textContent = total === 0 ? 'No results' :
+            `Showing ${start + 1}–${Math.min(end, total)} of ${total} tables`;
+        tableCount.textContent = `(${total} total)`;
+
+        // Build page buttons
+        pageBtns.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const btnStyle = (active) => `
+            padding: 0.3rem 0.7rem; border-radius: 5px; border: 1px solid var(--admin-border);
+            background: ${active ? '#3b82f6' : 'var(--admin-card)'}; 
+            color: ${active ? '#fff' : 'var(--admin-text)'}; cursor: pointer; font-size: 0.82rem;
+            font-weight: ${active ? '600' : '400'};
+        `;
+
+        // Prev
+        const prev = document.createElement('button');
+        prev.innerHTML = '&laquo;';
+        prev.style.cssText = btnStyle(false);
+        prev.disabled = currentPage === 1;
+        prev.onclick = () => { currentPage--; renderPage(); };
+        pageBtns.appendChild(prev);
+
+        // Page numbers (show max 5 around current)
+        let startP = Math.max(1, currentPage - 2);
+        let endP = Math.min(totalPages, startP + 4);
+        if (endP - startP < 4) startP = Math.max(1, endP - 4);
+
+        for (let p = startP; p <= endP; p++) {
+            const btn = document.createElement('button');
+            btn.textContent = p;
+            btn.style.cssText = btnStyle(p === currentPage);
+            btn.onclick = ((pg) => () => { currentPage = pg; renderPage(); })(p);
+            pageBtns.appendChild(btn);
+        }
+
+        // Next
+        const next = document.createElement('button');
+        next.innerHTML = '&raquo;';
+        next.style.cssText = btnStyle(false);
+        next.disabled = currentPage === totalPages;
+        next.onclick = () => { currentPage++; renderPage(); };
+        pageBtns.appendChild(next);
+    }
+
+    searchInput && searchInput.addEventListener('input', function() {
+        const q = this.value.toLowerCase().trim();
+        filteredRows = allRows.filter(r => r.dataset.name.includes(q));
+        currentPage = 1;
+        renderPage();
+    });
+
+    renderPage();
+})();
+</script>
 
 <?php endif; ?>
 

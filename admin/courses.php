@@ -7,6 +7,56 @@ $conn = getDbConnection();
 $success = '';
 $error = '';
 
+// ── PAGINATION HELPER ─────────────────────────────────────────────────
+function buildPaginationBar($total, $per_page, $current_page, $extra_params = []) {
+    $total_pages = max(1, ceil($total / $per_page));
+    $makeUrl = function($p) use ($per_page, $extra_params) {
+        $params = array_merge($extra_params, ['page' => $p]);
+        if ($per_page !== 10) $params['per_page'] = $per_page;
+        return '?' . http_build_query($params);
+    };
+    $btnBase   = 'display:inline-block;padding:.35rem .7rem;border-radius:5px;border:1px solid #ddd;font-size:.85rem;text-decoration:none;color:#333;background:#fff;';
+    $btnActive  = 'background:#007bff;color:#fff;border-color:#007bff;font-weight:600;';
+    $btnDis    = 'opacity:.45;pointer-events:none;';
+    ob_start(); ?>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-top:1rem;padding:.8rem 1rem;background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;">
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <span style="color:#666;font-size:.88rem;">
+                Showing <strong><?= min(($current_page-1)*$per_page+1,$total) ?>–<?= min($current_page*$per_page,$total) ?></strong>
+                of <strong><?= $total ?></strong>
+            </span>
+            <form method="GET" style="display:flex;align-items:center;gap:.4rem;">
+                <?php foreach($extra_params as $k=>$v): ?><input type="hidden" name="<?=$k?>" value="<?=htmlspecialchars($v)?>"><?php endforeach; ?>
+                <input type="hidden" name="page" value="1">
+                <label style="font-size:.85rem;color:#666;">Rows:</label>
+                <select name="per_page" onchange="this.form.submit()" style="padding:.3rem .5rem;border:1px solid #ddd;border-radius:5px;font-size:.85rem;cursor:pointer;">
+                    <?php foreach([10,25,50,100] as $opt): ?>
+                        <option value="<?=$opt?>" <?=$per_page==$opt?'selected':''?>><?=$opt?></option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+        </div>
+        <?php if($total_pages>1): ?>
+        <div style="display:flex;gap:.3rem;align-items:center;">
+            <?php
+            $pd=$current_page<=1?$btnDis:'';
+            echo "<a href='{$makeUrl($current_page-1)}' style='{$btnBase}{$pd}'>&laquo;</a>";
+            $rng=2;$sp=max(1,$current_page-$rng);$ep=min($total_pages,$current_page+$rng);
+            if($ep-$sp<$rng*2){$sp=max(1,$ep-$rng*2);$ep=min($total_pages,$sp+$rng*2);}
+            if($sp>1){echo "<a href='{$makeUrl(1)}' style='{$btnBase}'>1</a>";if($sp>2)echo "<span style='padding:.35rem .5rem;color:#999;font-size:.85rem;'>…</span>";}
+            for($p=$sp;$p<=$ep;$p++){$a=$p===$current_page?$btnActive:'';echo "<a href='{$makeUrl($p)}' style='{$btnBase}{$a}'>{$p}</a>";}
+            if($ep<$total_pages){if($ep<$total_pages-1)echo "<span style='padding:.35rem .5rem;color:#999;font-size:.85rem;'>…</span>";echo "<a href='{$makeUrl($total_pages)}' style='{$btnBase}'>{$total_pages}</a>";}
+            $nd=$current_page>=$total_pages?$btnDis:'';
+            echo "<a href='{$makeUrl($current_page+1)}' style='{$btnBase}{$nd}'>&raquo;</a>";
+            ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php return ob_get_clean();
+}
+// ─────────────────────────────────────────────────────────────────────
+
+
 // --- HANDLE FORM SUBMISSIONS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -137,7 +187,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$courses = $conn->query("SELECT * FROM course_materials ORDER BY category, display_order ASC");
+// Paginated courses
+$_per_page  = isset($_GET['per_page']) ? max(10, min(100, (int)$_GET['per_page'])) : 10;
+$_cur_page  = isset($_GET['page'])     ? max(1, (int)$_GET['page']) : 1;
+$_offset    = ($_cur_page - 1) * $_per_page;
+$_total_courses = $conn->query("SELECT COUNT(*) as c FROM course_materials")->fetch_assoc()['c'];
+if ($_cur_page > max(1, ceil($_total_courses / $_per_page))) { $_cur_page = max(1, ceil($_total_courses / $_per_page)); $_offset = ($_cur_page-1)*$_per_page; }
+$courses = $conn->query("SELECT * FROM course_materials ORDER BY category, display_order ASC LIMIT $_per_page OFFSET $_offset");
 include 'includes/admin_header.php';
 ?>
 
@@ -227,6 +283,7 @@ include 'includes/admin_header.php';
             </tbody>
         </table>
     </div>
+    <?php echo buildPaginationBar($_total_courses, $_per_page, $_cur_page); ?>
 </div>
 
 <div id="courseModal" class="modal">
