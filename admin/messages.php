@@ -28,6 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     
     if ($stmt->execute()) {
         $success = 'Message status updated successfully!';
+    require_once 'includes/activity_helper.php';
+    logActivity($conn, 'edit', 'contact_messages', $id, 'Message #'.$id,
+        'Status changed to: ' . $status . ($admin_notes ? ' | Note: ' . $admin_notes : ''));
     } else {
         $error = 'Failed to update status';
     }

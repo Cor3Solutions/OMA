@@ -166,6 +166,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Commit transaction
                     $conn->commit();
                     $success = 'User and profile created successfully!';
+            logActivity($conn, 'create', 'users', $new_user_id ?? $conn->insert_id,
+                $name ?? $full_name ?? 'New User',
+                'New user account created. Role: ' . ($role??'member') .
+                ' | Email: ' . ($email??'N/A') .
+                ' | Serial: ' . ($serial_number??'N/A') .
+                ' | Status: ' . ($status??'active'));
 
                 } catch (Exception $e) {
                     // Rollback on error
@@ -320,6 +326,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $conn->commit();
                     $success = 'User updated successfully!';
+            logActivity($conn, 'edit', 'users', $id,
+                $name ?? $full_name ?? 'User #'.$id,
+                'User account updated. Role: ' . ($role??'N/A') .
+                ' | Status: ' . ($status??'N/A') .
+                ' | Email: ' . ($email??'N/A'));
 
                 } catch (Exception $e) {
                     $conn->rollback();

@@ -16,6 +16,7 @@ $page_title = "Manual Encode Members";
 require_once '../config/database.php';
 requireAdmin();
 $conn = getDbConnection();
+require_once 'includes/activity_helper.php';
 
 // ─────────────────────────────────────────────
 // AJAX: Live name search
@@ -264,6 +265,7 @@ function createUserForMember($conn, $fullName, $email, $phone, $khanLevel, $stat
 }
 
 function doInsert($conn, $fullName, $khanLevel, $khanColor, $datePromo, $instrId, $location) {
+    // (logActivity called after successful insert below)
     $email  = generateUniqueEmail($conn, $fullName);
     $userId = createUserForMember($conn, $fullName, $email, '', $khanLevel, 'active');
 

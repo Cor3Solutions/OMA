@@ -90,6 +90,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($stmt->execute()) {
                 $success = 'Instructor added successfully!';
+            logActivity($conn, 'create', 'instructors', $conn->insert_id, $name,
+                'New instructor added. Title: ' . $title . ' | Location: ' . ($location??'N/A') .
+                ' | Email: ' . ($contact_email??'N/A') . ' | Phone: ' . ($phone??'N/A') .
+                ' | Status: ' . $status . ' | Specialization: ' . ($specialization??'N/A'));
             } else {
                 $error = 'Failed to add instructor';
             }
@@ -97,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif (isset($_POST['edit_instructor'])) {
         $id = (int) $_POST['id'];
+        $before_inst = $conn->query("SELECT * FROM instructors WHERE id = $id")->fetch_assoc();
         $user_id = !empty($_POST['user_id']) ? (int) $_POST['user_id'] : null;
         $name = sanitize($_POST['name']);
         $khan_level = sanitize($_POST['khan_level']);
@@ -135,6 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($stmt->execute()) {
                 $success = 'Instructor updated successfully!';
+            $ch = [];
+            $wf = ['name','title','location','contact_email','phone','specialization','status'];
+            foreach ($wf as $ff) {
+                $ov = $before_inst[$ff] ?? ''; $nv = $$ff ?? '';
+                if ((string)$ov !== (string)$nv) $ch[] = "$ff: \"$ov\" → \"$nv\"";
+            }
+            logActivity($conn, 'edit', 'instructors', $id, $name,
+                empty($ch) ? 'No changes.' : implode(' | ', $ch));
             } else {
                 $error = 'Failed to update instructor';
             }

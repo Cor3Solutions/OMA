@@ -20,6 +20,7 @@ require_once '../config/database.php';
 requireAdmin();
 
 $conn = getDbConnection();
+require_once 'includes/activity_helper.php';
 $success = '';
 $error = '';
 
@@ -110,6 +111,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $member['current_khan_level'] = $khan_level; // refresh for this request
             }
             $success = 'Training record added successfully!';
+            logActivity(
+                $conn, 'create', 'training_history', $conn->insert_id,
+                $member['full_name'],
+                'Training record added. Khan Level: ' . $khan_level .
+                ' | Training Date: ' . $training_date .
+                ($certified_date ? ' | Certified: ' . $certified_date : '') .
+                ' | Status: ' . $status .
+                ' | Location: ' . ($location ?: 'N/A') .
+                ($certificate_number ? ' | Cert #: ' . $certificate_number : '') .
+                ($notes ? ' | Notes: ' . $notes : '')
+            );
         } else {
             $error = 'Failed to add record: ' . $stmt->error;
         }
@@ -148,6 +160,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $member['current_khan_level'] = $new_level;
                 $member['khan_color'] = $newColor;
                 $success = "Promoted to Khan $new_level successfully!";
+                logActivity(
+                    $conn, 'promote', 'khan_members', $member_id,
+                    $member['full_name'],
+                    'Member promoted to Khan ' . $new_level . ' (' . $newColor . ').' .
+                    ' Promotion Date: ' . $promo_date .
+                    ' | Instructor ID: ' . ($instructor_id ?? 'Not specified') .
+                    ($notes ? ' | Notes: ' . $notes : '')
+                );
             } catch (Exception $e) {
                 $conn->rollback();
                 $error = $e->getMessage();
@@ -158,6 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // EDIT TRAINING RECORD
     elseif (isset($_POST['edit_history'])) {
         $history_id         = (int)$_POST['history_id'];
+        $before_hist = $conn->query("SELECT * FROM khan_training_history WHERE id = $history_id")->fetch_assoc();
         $khan_level         = (int)$_POST['khan_level'];
         $training_date      = $_POST['training_date'];
         $certified_date     = !empty($_POST['certified_date']) ? $_POST['certified_date'] : null;
@@ -187,6 +208,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $success = 'Training record updated successfully!';
+            $changes = [];
+            $watch_h = ['khan_level','training_date','certified_date','instructor_id','location','notes','certificate_number','status'];
+            foreach ($watch_h as $f) {
+                $ov = $before_hist[$f] ?? '';
+                $nv = $$f ?? '';
+                if ((string)$ov !== (string)$nv) $changes[] = $f . ': [' . $ov . ' -> ' . $nv . ']';
+            }
+            $hist_detail = empty($changes) ? 'No changes.' : implode(' | ', $changes);
+            logActivity($conn, 'edit', 'training_history', $history_id,
+                $member['full_name'], 'Training record edited. ' . $hist_detail);
         } else {
             $error = 'Failed to update record: ' . $stmt->error;
         }
@@ -196,7 +227,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // DELETE TRAINING RECORD
     elseif (isset($_POST['delete_history'])) {
         $history_id = (int)$_POST['history_id'];
+        $del_hist = $conn->query("SELECT * FROM khan_training_history WHERE id = $history_id")->fetch_assoc();
         if ($conn->query("DELETE FROM khan_training_history WHERE id = $history_id AND member_id = $member_id")) {
+            logActivity($conn, 'delete', 'training_history', $history_id,
+                $member['full_name'],
+                'Training record deleted. Khan Level: ' . ($del_hist['khan_level'] ?? '?') .
+                ' | Date: ' . ($del_hist['training_date'] ?? '?') .
+                ' | Status: ' . ($del_hist['status'] ?? '?'));
             // Re-sync member's level to the highest remaining certified entry
             $maxRes = $conn->query("SELECT MAX(khan_level) as max_lvl FROM khan_training_history WHERE member_id = $member_id AND status = 'certified'");
             if ($maxRes) {

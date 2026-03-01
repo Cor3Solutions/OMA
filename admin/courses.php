@@ -138,10 +138,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("UPDATE course_materials SET title=?, description=?, category=?, khan_level_min=?, khan_level_max=?, file_path=?, file_type=?, video_url=?, thumbnail_path=?, duration_minutes=?, display_order=?, is_public=?, status=? WHERE id=?");
                 $stmt->bind_param("sssiissssiiisi", $title, $description, $category, $khan_level_min, $khan_level_max, $file_path, $file_type, $video_url, $thumbnail_path, $duration_minutes, $display_order, $is_public, $status, $course_id);
                 $msg = 'Course updated successfully!';
+            logActivity($conn, 'edit', 'course_materials', $course_id??$id,
+                $title??'Course',
+                'Course material updated. Status: ' . ($status??'N/A'));;
             } else {
                 $stmt = $conn->prepare("INSERT INTO course_materials (title, description, category, khan_level_min, khan_level_max, file_path, file_type, video_url, thumbnail_path, duration_minutes, display_order, is_public, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param("sssiissssiiisi", $title, $description, $category, $khan_level_min, $khan_level_max, $file_path, $file_type, $video_url, $thumbnail_path, $duration_minutes, $display_order, $is_public, $status, $user_id);
                 $msg = 'Course added successfully!';
+            logActivity($conn, 'create', 'course_materials', $conn->insert_id, $title??'New Course',
+                'Course material created. Category: ' . ($category??'N/A') .
+                ' | Khan Level: ' . ($khan_level_min??'').'-'.($khan_level_max??'') .
+                ' | Status: ' . ($status??'N/A'));;
             }
             
             if ($stmt->execute()) {

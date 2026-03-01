@@ -4,6 +4,7 @@ require_once '../config/database.php';
 requireAdmin();
 
 $conn = getDbConnection();
+require_once 'includes/activity_helper.php';
 $success = '';
 $error = '';
 
@@ -59,6 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $event_id = $stmt->insert_id;
                 handleImageUploads($conn, $event_id, $_FILES['images']);
                 $success = "Event added successfully!";
+            logActivity($conn, 'create', 'event_gallery', $conn->insert_id, $title,
+                'Event added. Date: ' . ($event_date??'N/A') . ' | Location: ' . $location .
+                ' | Category: ' . $category . ' | Status: ' . $status);
             } else {
                 $error = 'Failed to create event record.';
             }
@@ -85,8 +89,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($_FILES['images']['name'][0])) {
                 handleImageUploads($conn, $event_id, $_FILES['images']);
                 $success = "Event updated and new photos added!";
+                logActivity($conn, 'edit', 'event_gallery', $event_id, $title,
+                    'Event updated with new photos. Location: ' . $location . ' | Status: ' . $status);
             } else {
                 $success = "Event details updated successfully!";
+                logActivity($conn, 'edit', 'event_gallery', $event_id, $title,
+                    'Event details updated. Category: ' . $category . ' | Status: ' . $status);
             }
         } else {
             $error = "Failed to update event.";
@@ -97,6 +105,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 3. DELETE WHOLE EVENT
     elseif (isset($_POST['delete_event'])) {
         $id = (int)$_POST['id'];
+        $del_evt = $conn->query("SELECT * FROM event_gallery WHERE id = $id")->fetch_assoc();
+        if ($del_evt) {
+            archiveRecord($conn, 'event_gallery', $id, $del_evt['title'], $del_evt);
+            logActivity($conn, 'delete', 'event_gallery', $id, $del_evt['title'],
+                'Event deleted. Date: ' . ($del_evt['event_date']??'N/A') .
+                ' | Category: ' . $del_evt['category'] . ' | Status was: ' . $del_evt['status']);
+        }
         
         $photos_res = $conn->query("SELECT image_path FROM event_photos WHERE event_id = $id");
         while ($p = $photos_res->fetch_assoc()) {

@@ -4,8 +4,81 @@ require_once '../config/database.php';
 requireAdmin();
 
 $conn = getDbConnection();
+require_once 'includes/activity_helper.php';
 $success = '';
+
+// ── SERIAL NUMBER HELPER ──────────────────────────────────────────────────────
+// Members get OMA-001, OMA-002 … (numeric only, shared pool)
+// Admins get OMA-ADM-001 (separate pool in manage_admin_accounts.php)
+function nextMemberSerial($conn) {
+    // Get the highest numeric OMA-NNN serial (excludes OMA-ADM-* admin serials)
+    $res  = $conn->query("
+        SELECT serial_number FROM users
+        WHERE serial_number REGEXP '^OMA-[0-9]+$'
+        ORDER BY CAST(SUBSTRING(serial_number, 5) AS UNSIGNED) DESC
+        LIMIT 1
+    ");
+    $last = $res ? $res->fetch_assoc() : null;
+    $next = 1;
+    if ($last && preg_match('/^OMA-0*(\d+)$/', $last['serial_number'], $m)) {
+        $next = (int)$m[1] + 1;
+    }
+    return 'OMA-' . str_pad($next, 3, '0', STR_PAD_LEFT);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 $error = '';
+
+// ══════════════════════════════════════════════════════════════════════════
+// AUTO-REFRESHER CHECK
+// Runs silently on every page load.
+// Any active member whose last promotion/refresher date is > 6 months ago
+// is automatically flipped to "refresher" status and logged.
+// ══════════════════════════════════════════════════════════════════════════
+$refresher_cutoff = date('Y-m-d', strtotime('-6 months'));
+$stale_members = $conn->query("
+    SELECT km.id, km.full_name, km.status, km.current_khan_level,
+           km.date_promoted, km.date_joined,
+           MAX(kth.training_date) AS last_training
+    FROM khan_members km
+    LEFT JOIN khan_training_history kth ON kth.member_id = km.id
+    WHERE km.status = 'active'
+    GROUP BY km.id
+    HAVING (
+        last_training IS NULL
+        OR last_training < '$refresher_cutoff'
+    )
+    AND (
+        km.date_promoted IS NULL
+        OR km.date_promoted < '$refresher_cutoff'
+    )
+    AND (
+        km.date_joined IS NULL
+        OR km.date_joined < '$refresher_cutoff'
+    )
+");
+
+$auto_refreshed = 0;
+if ($stale_members && $stale_members->num_rows > 0) {
+    while ($stale = $stale_members->fetch_assoc()) {
+        $stale_id = (int)$stale['id'];
+        $conn->query("UPDATE khan_members SET status = 'refresher' WHERE id = $stale_id AND status = 'active'");
+        if ($conn->affected_rows > 0) {
+            $last = $stale['last_training'] ?? $stale['date_promoted'] ?? $stale['date_joined'] ?? 'unknown';
+            logActivity(
+                $conn, 'refresher', 'khan_members', $stale_id,
+                $stale['full_name'],
+                'Auto-flagged: No promotion or training record in the last 6 months. ' .
+                'Last activity: ' . $last . '. Khan Level: ' . $stale['current_khan_level'] . '.',
+                [], []
+            );
+            $auto_refreshed++;
+        }
+    }
+}
+if ($auto_refreshed > 0) {
+    $success = $auto_refreshed . ' member(s) automatically flagged as "Needs Refresher" (no activity in 6 months).';
+}
+// ══════════════════════════════════════════════════════════════════════════
 
 // ── PAGINATION HELPER ─────────────────────────────────────────────────
 function buildPaginationBar($total, $per_page, $current_page, $extra_params = []) {
@@ -91,14 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($ucheck && $ucheck->num_rows > 0) {
                 $user_id = (int)$ucheck->fetch_assoc()['id'];
             } else {
-                // Generate next serial number
-                $sres = $conn->query("SELECT serial_number FROM users WHERE serial_number LIKE 'OMA-%' ORDER BY serial_number DESC LIMIT 1");
-                $slast = $sres ? $sres->fetch_assoc() : null;
-                $snext = 1;
-                if ($slast && preg_match('/OMA-0*(\d+)/', $slast['serial_number'], $sm)) {
-                    $snext = (int)$sm[1] + 1;
-                }
-                $serial = 'OMA-' . str_pad($snext, 3, '0', STR_PAD_LEFT);
+                $serial = nextMemberSerial($conn);
 
                 // Default password: oma + firstname + lastname (all lowercase)
                 $parts = array_values(array_filter(explode(' ', strtolower(trim($full_name)))));
@@ -121,13 +187,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param("isssississss", $user_id, $full_name, $email, $phone, $current_khan_level, $khan_color, $date_joined, $date_promoted, $instructor_id, $training_location, $status, $notes);
 
         if ($stmt->execute()) {
-            $success = 'Khan member added successfully! A user account was automatically created.';
+            $new_id = $conn->insert_id;
+            $success = 'Khan member added successfully! User account created with serial <strong>' . $serial . '</strong>.';
+            logActivity(
+                $conn, 'create', 'khan_members', $new_id ?? $conn->insert_id,
+                $full_name,
+                'Added new Khan member. Level: Khan ' . $current_khan_level .
+                ' (' . $khan_color . ') | Email: ' . $email .
+                ' | Phone: ' . ($phone ?: 'N/A') .
+                ' | Location: ' . ($training_location ?: 'N/A') .
+                ' | Instructor ID: ' . ($instructor_id ?? 'None') .
+                ' | Status: ' . $status .
+                ' | Joined: ' . $date_joined .
+                ($date_promoted ? ' | Promoted: ' . $date_promoted : '') .
+                ($notes ? ' | Notes: ' . $notes : '')
+            );
         } else {
             $error = 'Failed to add khan member: ' . $conn->error;
         }
         $stmt->close();
     } elseif (isset($_POST['edit_member'])) {
         $id = (int) $_POST['id'];
+        // Capture before-state for diff logging
+        $before_row = $conn->query("SELECT * FROM khan_members WHERE id = $id")->fetch_assoc();
         $user_id = !empty($_POST['user_id']) ? (int) $_POST['user_id'] : null;
         $full_name = sanitize($_POST['full_name']);
         $email = sanitize($_POST['email']);
@@ -153,15 +235,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->execute()) {
             $success = 'Khan member updated successfully!';
+
+            // ── Password change (only if a new password was typed) ──
+            $new_password = trim($_POST['new_password'] ?? '');
+            if ($new_password !== '') {
+                $linked_user_id = $user_id;
+                if (!$linked_user_id) {
+                    $ue = $conn->query("SELECT id FROM users WHERE email = '" . $conn->real_escape_string($email) . "' LIMIT 1");
+                    if ($ue && $ue->num_rows > 0) $linked_user_id = (int)$ue->fetch_assoc()['id'];
+                }
+                if ($linked_user_id) {
+                    $hashed = password_hash($new_password, PASSWORD_DEFAULT);
+                    $hashed_esc = $conn->real_escape_string($hashed);
+                    $conn->query("UPDATE users SET password = '$hashed_esc' WHERE id = $linked_user_id");
+                    $success .= ' Password updated.';
+                    logActivity($conn, 'edit', 'users', $linked_user_id, $full_name, 'Password changed by admin.');
+                } else {
+                    $success .= ' (No linked user account — password not changed.)';
+                }
+            }
+            // Build diff details
+            $after_row = [
+                'full_name' => $full_name, 'email' => $email, 'phone' => $phone,
+                'current_khan_level' => $current_khan_level, 'khan_color' => $khan_color,
+                'date_joined' => $date_joined, 'date_promoted' => $date_promoted,
+                'instructor_id' => $instructor_id, 'training_location' => $training_location,
+                'status' => $status, 'notes' => $notes
+            ];
+            $changes = [];
+            $watch = ['full_name','email','phone','current_khan_level','date_promoted',
+                      'instructor_id','training_location','status','notes'];
+            foreach ($watch as $f) {
+                $old_v = $before_row[$f] ?? '';
+                $new_v = $after_row[$f] ?? '';
+                if ((string)$old_v !== (string)$new_v) {
+                    $changes[] = $f . ': [' . $old_v . ' -> ' . $new_v . ']';
+                }
+            }
+            $detail_str = empty($changes)
+                ? 'No field changes detected.'
+                : 'Fields changed: ' . implode(' | ', $changes);
+            logActivity($conn, 'edit', 'khan_members', $id, $full_name, $detail_str);
         } else {
             $error = 'Failed to update khan member';
         }
         $stmt->close();
     } elseif (isset($_POST['delete_member'])) {
         $id = (int) $_POST['id'];
-
+        $del_row = $conn->query("
+            SELECT km.*, i.name as instructor_name
+            FROM khan_members km
+            LEFT JOIN instructors i ON km.instructor_id = i.id
+            WHERE km.id = $id
+        ")->fetch_assoc();
+        if ($del_row) {
+            archiveRecord($conn, 'khan_members', $id, $del_row['full_name'], $del_row);
+            logActivity(
+                $conn, 'delete', 'khan_members', $id,
+                $del_row['full_name'],
+                'Permanently deleted Khan member. Khan Level: ' . $del_row['current_khan_level'] .
+                ' | Email: ' . $del_row['email'] .
+                ' | Location: ' . ($del_row['training_location'] ?: 'N/A') .
+                ' | Instructor: ' . ($del_row['instructor_name'] ?: 'None') .
+                ' | Status was: ' . $del_row['status']
+            );
+        }
         if ($conn->query("DELETE FROM khan_members WHERE id = $id")) {
-            $success = 'Khan member deleted successfully!';
+            $success = 'Khan member deleted and archived successfully!';
         } else {
             $error = 'Failed to delete khan member';
         }
@@ -580,6 +720,34 @@ include 'includes/admin_header.php';
                 <textarea name="notes" id="edit_notes" class="form-textarea" rows="3"></textarea>
             </div>
 
+            <div style="border-top: 2px dashed #e0e0e0; margin: 1.5rem 0; padding-top: 1.5rem;">
+                <h4 style="margin: 0 0 0.75rem; color: #555; font-size: 0.95rem;">
+                    <i class="fas fa-lock"></i> Change Password <span style="font-weight:400; color:#999;">(leave blank to keep current)</span>
+                </h4>
+                <div class="form-grid">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">New Password</label>
+                        <div style="position:relative;">
+                            <input type="password" name="new_password" id="edit_new_password"
+                                   class="form-input" placeholder="Enter new password"
+                                   style="padding-right: 2.5rem;">
+                            <button type="button" onclick="togglePwVisibility()"
+                                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;font-size:0.9rem;"
+                                    title="Show/hide password">
+                                <i class="fas fa-eye" id="pwToggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Default Password Hint</label>
+                        <div style="background:#f5f5f5; border-radius:4px; padding:0.55rem 0.75rem; font-size:0.85rem; color:#666; border:1px solid #ddd;">
+                            Format: <code style="color:#D32F2F;">oma</code> + first name + last name
+                            <br><small id="pwHint" style="color:#888;"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="action-buttons">
                 <button type="submit" name="edit_member" class="btn btn-primary">
                     <i class="fas fa-save"></i> Update Member
@@ -732,6 +900,13 @@ include 'includes/admin_header.php';
         document.getElementById('edit_training_location').value = member.training_location || '';
         document.getElementById('edit_status').value = member.status;
         document.getElementById('edit_notes').value = member.notes || '';
+        document.getElementById('edit_new_password').value = '';
+
+        // Auto-generate default password hint from name
+        const parts = member.full_name.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        const first = parts[0] || '';
+        const last  = parts.length > 1 ? parts[parts.length - 1] : '';
+        document.getElementById('pwHint').textContent = 'Default: oma' + first + last;
 
         // Update the color display based on current level
         updateKhanColor('edit');
@@ -782,6 +957,18 @@ include 'includes/admin_header.php';
             document.getElementById('editModal').style.display = 'none';
         }
     });
+
+    function togglePwVisibility() {
+        const input = document.getElementById('edit_new_password');
+        const icon  = document.getElementById('pwToggleIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
 </script>
 
 <?php include 'includes/admin_footer.php'; ?>

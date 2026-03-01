@@ -86,6 +86,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($stmt->execute()) {
                 $success = 'Affiliate added successfully!';
+            logActivity($conn, 'create', 'affiliates', $conn->insert_id, $name,
+                'New affiliate added. Contact: ' . ($contact_email??'N/A') .
+                ' | Phone: ' . ($phone??'N/A') . ' | Status: ' . $status);;
             } else {
                 $error = 'Failed to add affiliate';
             }
@@ -127,6 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($stmt->execute()) {
                 $success = 'Affiliate updated successfully!';
+            logActivity($conn, 'edit', 'affiliates', $id, $name,
+                'Affiliate record updated.');;
             } else {
                 $error = 'Failed to update affiliate';
             }

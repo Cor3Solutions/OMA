@@ -58,12 +58,6 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <span>Dashboard</span>
                 </a>
 
-                <a href="<?php echo SITE_URL; ?>/admin/manage_users_centralized.php"
-                    class="nav-item <?php echo $current_admin_page === 'manage_users_centralized' ? 'active' : ''; ?>">
-                    <i class="fas fa-users-cog fa-fw"></i>
-                    <span>User Management</span>
-                </a>
-
                 <a href="<?php echo SITE_URL; ?>/admin/khan_members.php"
                     class="nav-item <?php echo $current_admin_page === 'khan_members' || $current_admin_page === 'member_training_history' ? 'active' : ''; ?>">
                     <i class="fas fa-user-graduate fa-fw"></i>
@@ -76,6 +70,12 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <span>Instructors</span>
                 </a>
 
+                <a href="<?php echo SITE_URL; ?>/admin/manage_admin_accounts.php"
+                    class="nav-item <?php echo $current_admin_page === 'manage_admin_accounts' ? 'active' : ''; ?>">
+                    <i class="fas fa-users-cog fa-fw"></i>
+                    <span>Admin Accounts</span>
+                </a>
+                
                 <a href="<?php echo SITE_URL; ?>/admin/affiliates.php"
                     class="nav-item <?php echo $current_admin_page === 'affiliates' ? 'active' : ''; ?>">
                     <i class="fas fa-handshake fa-fw"></i>
