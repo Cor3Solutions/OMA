@@ -18,8 +18,8 @@ if ($user_role === 'member') {
     $m = $conn->query("SELECT current_khan_level FROM khan_members WHERE user_id = $user_id")->fetch_assoc();
     $lvl = $m['current_khan_level'] ?? 1;
     
-    $stmt = $conn->prepare("SELECT * FROM course_materials WHERE id = ? AND status='published' AND (is_public=1 OR (khan_level_min <= ? AND khan_level_max >= ?))");
-    $stmt->bind_param("iii", $course_id, $lvl, $lvl);
+    $stmt = $conn->prepare("SELECT * FROM course_materials WHERE id = ? AND status='published' AND (is_public=1 OR khan_level_min <= ?)");
+    $stmt->bind_param("ii", $course_id, $lvl);
 } else {
     // Admins can view anything
     $stmt = $conn->prepare("SELECT * FROM course_materials WHERE id = ?");

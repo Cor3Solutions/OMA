@@ -75,7 +75,11 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <i class="fas fa-users-cog fa-fw"></i>
                     <span>Admin Accounts</span>
                 </a>
-                
+                <a href="<?php echo SITE_URL; ?>/admin/admin_change_password.php"
+                    class="nav-item <?php echo $current_admin_page === 'admin_change_password' ? 'active' : ''; ?>">
+                    <i class="fas fa-lock fa-fw"></i>
+                    <span>Change Password</span>
+                </a> 
                 <a href="<?php echo SITE_URL; ?>/admin/affiliates.php"
                     class="nav-item <?php echo $current_admin_page === 'affiliates' ? 'active' : ''; ?>">
                     <i class="fas fa-handshake fa-fw"></i>
@@ -86,6 +90,12 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     class="nav-item <?php echo $current_admin_page === 'courses' ? 'active' : ''; ?>">
                     <i class="fas fa-book-open fa-fw"></i>
                     <span>Course Materials</span>
+                </a>
+
+                <a href="<?php echo SITE_URL; ?>/admin/refresher_requests.php"
+                    class="nav-item <?php echo $current_admin_page === 'refresher_requests' ? 'active' : ''; ?>">
+                    <i class="fas fa-book-open fa-fw"></i>
+                    <span>Refresher Requests</span>
                 </a>
 
                 <a href="<?php echo SITE_URL; ?>/admin/events.php"

@@ -1,397 +1,120 @@
 <?php
-$page_title = "My Courses";
+$page_title = "Training Library";
 require_once '../config/database.php';
 requireLogin();
 
-$conn = getDbConnection();
-$user_id = $_SESSION['user_id'];
+$conn      = getDbConnection();
+$user_id   = $_SESSION['user_id'];
 $user_role = $_SESSION['user_role'];
 
-// FETCH COURSES
 $courses = [];
 if ($user_role === 'member') {
-    $m = $conn->query("SELECT current_khan_level FROM khan_members WHERE user_id = $user_id")->fetch_assoc();
+    $m   = $conn->query("SELECT current_khan_level FROM khan_members WHERE user_id = $user_id")->fetch_assoc();
     $lvl = $m['current_khan_level'] ?? 1;
-    $q = "SELECT * FROM course_materials WHERE status='published' AND (is_public=1 OR (khan_level_min <= $lvl AND khan_level_max >= $lvl)) ORDER BY display_order";
+    $q   = "SELECT * FROM course_materials WHERE status='published' AND (is_public=1 OR khan_level_min <= $lvl) ORDER BY khan_level_min ASC, display_order ASC";
 } else {
     $q = "SELECT * FROM course_materials WHERE status='published' ORDER BY category, display_order";
 }
 
 $res = $conn->query($q);
-while ($row = $res->fetch_assoc()) {
-    $courses[] = $row;
+while ($row = $res->fetch_assoc()) { $courses[] = $row; }
+
+// Group by category
+$grouped = [];
+foreach ($courses as $c) {
+    $grouped[$c['category']][] = $c;
 }
 
 include 'includes/user_header.php';
 ?>
 
-<style>
-    :root {
-        --primary: #2c3e50;
-        --bg: #f4f6f9;
-        --card: #ffffff;
-        --radius: 12px;
-    }
+<div class="dashboard-container">
 
-    body {
-        background-color: var(--bg);
-        font-family: -apple-system, sans-serif;
-        color: #333;
-        margin: 0;
-    }
-
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 1.5rem;
-    }
-
-    .page-header {
-        margin-bottom: 2rem;
-    }
-
-    .page-header h2 {
-        margin: 0;
-        color: var(--primary);
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .course-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .course-card {
-        background: var(--card);
-        border-radius: var(--radius);
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        display: flex;
-        flex-direction: column;
-    }
-
-    .course-img {
-        height: 180px;
-        background: #eee;
-        position: relative;
-    }
-
-    .course-img img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .play-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-
-    .course-card:hover .play-overlay {
-        opacity: 1;
-    }
-
-    .course-body {
-        padding: 1.5rem;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .badge {
-        display: inline-block;
-        padding: 4px 8px;
-        background: #f0f2f5;
-        font-size: 0.75rem;
-        border-radius: 4px;
-        margin-bottom: 0.5rem;
-        color: #666;
-    }
-
-    .btn-view {
-        margin-top: auto;
-        padding: 12px;
-        background: var(--primary);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    /* MODAL STYLES (Mobile Optimized) */
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.95);
-        z-index: 9999;
-        flex-direction: column;
-    }
-
-    .modal-header {
-        padding: 15px;
-        background: #1a1a1a;
-        color: white;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .close-btn {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 24px;
-        padding: 10px;
-    }
-
-    .modal-scroll-area {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .video-container {
-        width: 100%;
-        max-width: 1000px;
-        background: black;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    video {
-        width: 100%;
-        max-height: 50vh;
-        display: block;
-    }
-
-    .materials-container {
-        width: 100%;
-        max-width: 1000px;
-        padding: 20px;
-        box-sizing: border-box;
-        background: #222;
-        min-height: 100%;
-    }
-
-    .material-item {
-        background: #333;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        color: white;
-    }
-
-    .mat-icon {
-        font-size: 24px;
-        color: #3498db;
-    }
-
-    .mat-info h4 {
-        margin: 0 0 5px 0;
-        font-size: 1rem;
-    }
-
-    .mat-info p {
-        margin: 0;
-        font-size: 0.8rem;
-        color: #aaa;
-    }
-
-    .btn-download {
-        margin-left: auto;
-        padding: 8px 15px;
-        background: #444;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-size: 0.85rem;
-    }
-
-    /* Phone specific */
-    @media (max-width: 768px) {
-        .course-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .course-card {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .play-overlay {
-            opacity: 1;
-            background: rgba(0, 0, 0, 0.1);
-        }
-
-        /* Always show play icon slightly on phone */
-        .btn-view {
-            padding: 15px;
-            font-size: 1rem;
-        }
-
-        /* Larger touch target */
-    }
-</style>
-
-<div class="container">
-    <div class="page-header">
-        <h2><i class="fas fa-graduation-cap"></i> Training Library</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:0.5rem;">
+        <div>
+            <h1 style="margin-bottom:0.25rem;">Training Library</h1>
+            <p style="color:var(--text-muted);font-size:0.9rem;margin:0;font-family:'DM Sans',sans-serif;">
+                <?php echo count($courses); ?> module<?php echo count($courses) !== 1 ? 's' : ''; ?> available
+                <?php if ($user_role === 'member'): ?> · up to Khan <?php echo $lvl ?? 1; ?><?php endif; ?>
+            </p>
+        </div>
     </div>
 
     <?php if (empty($courses)): ?>
-        <div style="text-align:center; padding: 3rem; background:white; border-radius:12px;">
-            <h3>No materials available</h3>
-            <p>Training materials will appear here when assigned to your level.</p>
+    <div class="dashboard-section">
+        <div class="empty-state">
+            <i class="fas fa-graduation-cap"></i>
+            <h3>No Materials Available</h3>
+            <p>Training materials will appear here when assigned to your Khan level.</p>
         </div>
+    </div>
     <?php else: ?>
-        <div class="course-grid">
-            <?php foreach ($courses as $c): ?>
-                <div class="course-card">
-                    <div class="course-img">
-                        <?php if ($c['thumbnail_path']): ?>
-                            <img src="<?php echo SITE_URL . '/' . $c['thumbnail_path']; ?>">
-                        <?php endif; ?>
-                        <div class="play-overlay"><i class="fas fa-play-circle fa-3x"
-                                style="color:white; drop-shadow:0 2px 4px rgba(0,0,0,0.5);"></i></div>
-                    </div>
-                    <div class="course-body">
-                        <span class="badge"><?php echo ucfirst($c['category']); ?></span>
-                        <h3 style="margin:0 0 10px 0;"><?php echo htmlspecialchars($c['title']); ?></h3>
-                        <p style="color:#666; font-size:0.9rem; line-height:1.4; flex:1; margin-bottom:15px;">
-                            <?php echo htmlspecialchars(substr($c['description'], 0, 80)) . '...'; ?>
-                        </p>
-                        <a href="view_course.php?id=<?php echo $c['id']; ?>" class="btn-view" style="text-decoration:none;">
-                            Start Module
-                        </a>
+
+    <?php foreach ($grouped as $category => $items): ?>
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2>
+                <i class="fas <?php
+                    $icons = ['technique'=>'fa-fist-raised','theory'=>'fa-book','history'=>'fa-landmark','conditioning'=>'fa-dumbbell','general'=>'fa-scroll'];
+                    echo $icons[strtolower($category)] ?? 'fa-layer-group';
+                ?>"></i>
+                <?php echo ucfirst($category); ?>
+            </h2>
+            <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600;"><?php echo count($items); ?> module<?php echo count($items)!==1?'s':''; ?></span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;">
+            <?php foreach ($items as $c): ?>
+            <div style="background:var(--light);border-radius:10px;overflow:hidden;border:1px solid var(--border);display:flex;flex-direction:column;transition:all 0.25s;"
+                 onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 32px rgba(0,0,0,0.12)';this.style.borderColor='var(--gold)'"
+                 onmouseout="this.style.transform='none';this.style.boxShadow='none';this.style.borderColor='var(--border)'">
+
+                <div style="height:150px;background:linear-gradient(135deg,var(--crimson-dark),var(--ink));position:relative;overflow:hidden;">
+                    <?php if ($c['thumbnail_path']): ?>
+                        <img src="<?php echo SITE_URL.'/'.$c['thumbnail_path']; ?>" style="width:100%;height:100%;object-fit:cover;opacity:0.8;">
+                    <?php else: ?>
+                        <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;color:rgba(201,168,76,0.2);">
+                            <i class="fas fa-scroll"></i>
+                        </div>
+                    <?php endif; ?>
+                    <!-- Level badge -->
+                    <div style="position:absolute;bottom:10px;right:10px;">
+                        <span style="background:rgba(0,0,0,0.7);color:var(--gold);padding:3px 10px;border-radius:50px;font-size:0.68rem;font-weight:700;letter-spacing:0.5px;backdrop-filter:blur(4px);">
+                            KL <?php echo $c['khan_level_min']; ?>
+                            <?php if($c['khan_level_max'] > $c['khan_level_min']): ?>–<?php echo $c['khan_level_max']; ?><?php endif; ?>
+                        </span>
                     </div>
                 </div>
+
+                <div style="padding:1.25rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="font-family:'Cinzel',serif;font-weight:700;font-size:0.9rem;color:var(--ink);margin-bottom:0.5rem;line-height:1.35;">
+                        <?php echo htmlspecialchars($c['title']); ?>
+                    </div>
+                    <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.5;flex:1;margin-bottom:1rem;">
+                        <?php echo htmlspecialchars(mb_substr($c['description'],0,90)); ?>...
+                    </p>
+                    <div style="display:flex;gap:0.625rem;">
+                        <?php if(!empty($c['video_url'])): ?>
+                            <span style="font-size:0.72rem;color:var(--crimson);background:#fef2f2;padding:2px 8px;border-radius:50px;font-weight:600;"><i class="fas fa-play-circle"></i> Video</span>
+                        <?php endif; ?>
+                        <?php if(!empty($c['file_path'])): ?>
+                            <span style="font-size:0.72rem;color:var(--success);background:#f0fdf4;padding:2px 8px;border-radius:50px;font-weight:600;"><i class="fas fa-file"></i> Document</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div style="padding:0 1.25rem 1.25rem;">
+                    <a href="view_course.php?id=<?php echo $c['id']; ?>" class="btn btn-primary btn-block btn-sm">
+                        <i class="fas fa-play"></i> Start Module
+                    </a>
+                </div>
+            </div>
             <?php endforeach; ?>
         </div>
+    </div>
+    <?php endforeach; ?>
     <?php endif; ?>
+
 </div>
-
-<div id="courseModal" class="modal-overlay">
-    <div class="modal-header">
-        <h3 id="mTitle"
-            style="margin:0; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%;">
-            Title</h3>
-        <button class="close-btn" onclick="closeViewer()">&times;</button>
-    </div>
-
-    <div class="modal-scroll-area">
-        <div id="videoSection" class="video-container" style="display:none;">
-            <video id="mainVideo" controls controlsList="nodownload" oncontextmenu="return false;">
-                Your browser does not support video.
-            </video>
-        </div>
-
-        <div class="materials-container">
-            <h4 style="color:#eee; margin-top:0; border-bottom:1px solid #444; padding-bottom:10px;">
-                <i class="fas fa-folder-open"></i> Course Materials
-            </h4>
-
-            <div id="materialsList">
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function openViewer(course) {
-        document.getElementById('mTitle').textContent = course.title;
-        const vidSec = document.getElementById('videoSection');
-        const vidPlayer = document.getElementById('mainVideo');
-        const matList = document.getElementById('materialsList');
-
-        // Setup Video
-        if (course.video_url) {
-            vidSec.style.display = 'block';
-            vidPlayer.src = course.video_url;
-        } else {
-            vidSec.style.display = 'none';
-            vidPlayer.pause();
-            vidPlayer.src = "";
-        }
-
-        // Setup Materials
-        matList.innerHTML = '';
-
-        // 1. Add the main file if exists (PDF/Image)
-        if (course.file_path) {
-            const ext = course.file_path.split('.').pop().toLowerCase();
-            let icon = 'fa-file-alt';
-            if (ext === 'pdf') icon = 'fa-file-pdf';
-            if (['jpg', 'png'].includes(ext)) icon = 'fa-file-image';
-
-            // Check if it's displayable inline or download
-            let actionBtn = '';
-            if (ext === 'pdf' || ['jpg', 'png', 'jpeg'].includes(ext)) {
-                // For simple view, we just link to it or embed. 
-                // Since mobile PDF embedding is tricky, a new tab or dedicated view is safer.
-                actionBtn = `<a href="${course.file_path}" target="_blank" class="btn-download">View ${ext.toUpperCase()}</a>`;
-            } else {
-                actionBtn = `<span style="color:#777; font-size:0.8rem;">Preview unavailable</span>`;
-            }
-
-            const html = `
-            <div class="material-item">
-                <i class="fas ${icon} mat-icon"></i>
-                <div class="mat-info">
-                    <h4>Course Reference Document</h4>
-                    <p>Primary material for this module</p>
-                </div>
-                ${actionBtn}
-            </div>
-            
-            ${['jpg', 'jpeg', 'png'].includes(ext) ? `<img src="${course.file_path}" style="width:100%; border-radius:8px; margin-top:10px;">` : ''}
-        `;
-            matList.innerHTML += html;
-        }
-
-        if (!course.video_url && !course.file_path) {
-            matList.innerHTML = '<p style="color:#777; text-align:center;">No digital assets found for this course.</p>';
-        }
-
-        document.getElementById('courseModal').style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Lock scroll
-    }
-
-    function closeViewer() {
-        const vidPlayer = document.getElementById('mainVideo');
-        vidPlayer.pause();
-        vidPlayer.src = "";
-        document.getElementById('courseModal').style.display = 'none';
-        document.body.style.overflow = 'auto'; // Unlock scroll
-    }
-</script>
 
 <?php include 'includes/user_footer.php'; ?>

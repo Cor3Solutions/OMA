@@ -4,232 +4,224 @@ require_once '../config/database.php';
 requireLogin();
 
 $conn = getDbConnection();
-$user_id = $_SESSION['user_id'];
+$user_id   = $_SESSION['user_id'];
 $user_role = $_SESSION['user_role'];
 
 if ($user_role === 'admin') {
-    header('Location: ' . SITE_URL . '/admin/index.php');
-    exit;
+    header('Location: ' . SITE_URL . '/admin/index.php'); exit;
 }
 
-$user = $conn->query("SELECT * FROM users WHERE id = $user_id")->fetch_assoc();
+$user      = $conn->query("SELECT * FROM users WHERE id = $user_id")->fetch_assoc();
 $role_data = null;
-$courses = [];
+$courses   = [];
 $my_students = [];
 
-// FETCH DATA
 if ($user_role === 'member') {
-    $member_query = $conn->query("SELECT km.*, i.name as instructor_name FROM khan_members km LEFT JOIN instructors i ON km.instructor_id = i.id WHERE km.user_id = $user_id");
-    $role_data = $member_query->fetch_assoc();
-    
-    $courses_query = $conn->query("SELECT * FROM course_materials WHERE status = 'published' AND (is_public = 1 OR khan_level_min <= " . ($role_data['current_khan_level'] ?? 1) . " AND khan_level_max >= " . ($role_data['current_khan_level'] ?? 1) . ") ORDER BY display_order, title");
-    while ($course = $courses_query->fetch_assoc()) { $courses[] = $course; }
-    
+    $role_data = $conn->query("
+        SELECT km.*, i.name as instructor_name
+        FROM khan_members km
+        LEFT JOIN instructors i ON km.instructor_id = i.id
+        WHERE km.user_id = $user_id
+    ")->fetch_assoc();
+
+    $pending_refresher = null;
+    if ($role_data && $role_data['status'] === 'refresher') {
+        $pending_refresher = $conn->query("
+            SELECT id FROM refresher_requests
+            WHERE member_id = " . (int)$role_data['id'] . " AND status = 'pending' LIMIT 1
+        ")->fetch_assoc();
+    }
+
+    $lvl = $role_data['current_khan_level'] ?? 1;
+    $courses_q = $conn->query("
+        SELECT * FROM course_materials
+        WHERE status = 'published' AND (is_public = 1 OR khan_level_min <= $lvl)
+        ORDER BY khan_level_min ASC, display_order ASC, title ASC
+    ");
+    while ($c = $courses_q->fetch_assoc()) { $courses[] = $c; }
+
 } elseif ($user_role === 'instructor') {
-    $instructor_query = $conn->query("SELECT * FROM instructors WHERE user_id = $user_id");
-    $role_data = $instructor_query->fetch_assoc();
-    
-    $courses_query = $conn->query("SELECT * FROM course_materials WHERE status = 'published' ORDER BY category, display_order, title");
-    while ($course = $courses_query->fetch_assoc()) { $courses[] = $course; }
+    $role_data = $conn->query("SELECT * FROM instructors WHERE user_id = $user_id")->fetch_assoc();
+
+    $courses_q = $conn->query("SELECT * FROM course_materials WHERE status = 'published' ORDER BY category, display_order, title");
+    while ($c = $courses_q->fetch_assoc()) { $courses[] = $c; }
 
     if ($role_data) {
-        $students_query = $conn->query("SELECT * FROM khan_members WHERE instructor_id = " . $role_data['id'] . " ORDER BY current_khan_level DESC");
-        while ($student = $students_query->fetch_assoc()) { $my_students[] = $student; }
+        $sq = $conn->query("SELECT * FROM khan_members WHERE instructor_id = " . $role_data['id'] . " ORDER BY current_khan_level DESC");
+        while ($s = $sq->fetch_assoc()) { $my_students[] = $s; }
     }
 }
 
 include 'includes/user_header.php';
 ?>
 
-<style>
-    :root {
-        --primary: #2c3e50;
-        --secondary: #34495e;
-        --accent: #3498db;
-        --bg: #f4f6f9;
-        --card: #ffffff;
-        --text: #333333;
-        --muted: #7f8c8d;
-        --border: #e0e0e0;
-        --radius: 12px;
-        --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-    }
+<div class="dashboard-container">
 
-    body {
-        background-color: var(--bg);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: var(--text);
-        margin: 0;
-        padding-bottom: 80px; /* Space for bottom nav if needed */
-    }
-
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 1.5rem;
-    }
-
-    /* Mobile Typography */
-    h1 { font-size: 1.5rem; margin: 0; }
-    h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--secondary); display: flex; align-items: center; gap: 10px; }
-    
-    /* Header */
-    .dashboard-header {
-        background: var(--card);
-        padding: 1.5rem;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        margin-bottom: 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .user-info { display: flex; align-items: center; gap: 15px; }
-    .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #eee; }
-    .badge-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; background: #e3f2fd; color: #1565c0; }
-
-    /* Grid Layouts */
-    .grid-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive */
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .stat-card {
-        background: var(--card);
-        padding: 1.25rem;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        border-left: 4px solid var(--accent);
-    }
-    .stat-card h4 { margin: 0; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
-    .stat-card p { margin: 5px 0 0; font-size: 1.5rem; font-weight: 700; color: var(--primary); }
-
-    /* Course Cards */
-    .grid-courses {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.5rem;
-    }
-    
-    .course-card {
-        background: var(--card);
-        border-radius: var(--radius);
-        overflow: hidden;
-        box-shadow: var(--shadow);
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .course-thumb {
-        height: 160px;
-        background: #eee;
-        position: relative;
-    }
-    .course-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    
-    .course-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; }
-    .course-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem 0; }
-    .course-desc { font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem; flex: 1; }
-    
-    .btn {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 100%; padding: 12px; border-radius: 8px;
-        border: none; font-weight: 600; cursor: pointer;
-        font-size: 0.95rem; text-decoration: none; gap: 8px;
-        transition: opacity 0.2s;
-    }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    .btn:active { opacity: 0.8; transform: scale(0.98); }
-
-    /* Mobile Optimization */
-    @media (max-width: 768px) {
-        .container { padding: 1rem; }
-        .dashboard-header { flex-direction: column; align-items: flex-start; }
-        .grid-stats { grid-template-columns: 1fr 1fr; }
-        .grid-courses { grid-template-columns: 1fr; } /* Stack courses on phone */
-    }
-</style>
-
-<div class="container">
-    <div class="dashboard-header">
-        <div>
-            <h1>Hello, <?php echo htmlspecialchars($user['name']); ?></h1>
-            <p style="margin:5px 0 0; color:var(--muted); font-size:0.9rem;"><?php echo date('F j, Y'); ?></p>
+    <?php if ($user_role === 'member' && !empty($role_data) && $role_data['status'] === 'refresher'): ?>
+    <div style="background:linear-gradient(135deg,#7c2d12,#431407);color:white;border-radius:12px;padding:1.25rem 1.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;box-shadow:0 4px 20px rgba(124,45,18,0.35);border:1px solid rgba(255,159,67,0.25);">
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <div style="width:44px;height:44px;background:rgba(255,255,255,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid rgba(255,200,100,0.3);">
+                <i class="fas fa-exclamation-triangle" style="color:#fbbf24;font-size:1.1rem;"></i>
+            </div>
+            <div>
+                <strong style="display:block;font-family:'Cinzel',serif;font-size:0.9rem;margin-bottom:0.2rem;letter-spacing:0.04em;">Status: Needs Refresher</strong>
+                <span style="font-size:0.8rem;opacity:0.8;">No training recorded in 3 months. Submit a request to restore Active status.</span>
+            </div>
         </div>
-        <div class="user-info">
-            <span class="badge-pill"><?php echo ucfirst($user_role); ?></span>
-            <?php if ($role_data && !empty($role_data['photo_path'])): ?>
-                <img src="<?php echo SITE_URL . '/' . $role_data['photo_path']; ?>" class="avatar">
-            <?php else: ?>
-                <div class="avatar" style="display:flex;align-items:center;justify-content:center;font-weight:bold;color:#777;">
-                    <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
-                </div>
-            <?php endif; ?>
+        <?php if ($pending_refresher): ?>
+            <div style="background:rgba(255,255,255,0.12);padding:0.5rem 1.1rem;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;border:1px solid rgba(255,255,255,0.2);">
+                <i class="fas fa-clock"></i> Request Pending Review
+            </div>
+        <?php else: ?>
+            <a href="refresher_request.php" style="background:rgba(255,255,255,0.9);color:#7c2d12;padding:0.55rem 1.25rem;border-radius:8px;font-size:0.83rem;font-weight:700;text-decoration:none;white-space:nowrap;">
+                <i class="fas fa-paper-plane"></i> Submit Request
+            </a>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-content">
+            <h1>Welcome back, <?php echo htmlspecialchars($user['name']); ?></h1>
+            <p><?php echo date('l, F j, Y'); ?></p>
+            <div class="user-role-badge">
+                <span class="badge badge-<?php echo $user_role; ?>"><?php echo ucfirst($user_role); ?></span>
+            </div>
         </div>
+        <?php if ($role_data && !empty($role_data['photo_path'])): ?>
+            <div class="user-avatar-large">
+                <img src="<?php echo SITE_URL . '/' . $role_data['photo_path']; ?>" alt="Profile">
+            </div>
+        <?php else: ?>
+            <div class="user-avatar-large-placeholder">
+                <?php echo strtoupper(substr($user['name'],0,1)); ?>
+            </div>
+        <?php endif; ?>
     </div>
 
-    <div class="grid-stats">
+    <!-- Stats -->
+    <div class="stats-grid">
         <div class="stat-card">
-            <h4>Serial No.</h4>
-            <p><?php echo htmlspecialchars($user['serial_number']); ?></p>
+            <div class="stat-icon"><i class="fas fa-id-badge"></i></div>
+            <div class="stat-content">
+                <div class="stat-label">Serial No.</div>
+                <div class="stat-value" style="font-size:1.2rem;font-family:'DM Sans',sans-serif;font-weight:700;">
+                    <?php echo htmlspecialchars($user['serial_number']); ?>
+                </div>
+            </div>
         </div>
-        
+
         <?php if ($user_role === 'member'): ?>
-            <div class="stat-card" style="border-color: #e67e22;">
-                <h4>Rank</h4>
-                <p>Khan <?php echo $role_data['current_khan_level'] ?? 1; ?></p>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#92400e,#451a03);"><i class="fas fa-award"></i></div>
+            <div class="stat-content">
+                <div class="stat-label">Khan Rank</div>
+                <div class="stat-value">
+                    <?php echo $role_data['current_khan_level'] ?? 1; ?>
+                </div>
             </div>
-            <div class="stat-card" style="border-color: #27ae60;">
-                <h4>Instructor</h4>
-                <p style="font-size:1rem; margin-top:10px;"><?php echo htmlspecialchars($role_data['instructor_name'] ?? 'None'); ?></p>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,var(--gold),#a07c2a);"><i class="fas fa-user-tie"></i></div>
+            <div class="stat-content">
+                <div class="stat-label">Instructor</div>
+                <div class="stat-value" style="font-size:1rem;font-family:'DM Sans',sans-serif;line-height:1.3;padding-top:4px;">
+                    <?php echo htmlspecialchars($role_data['instructor_name'] ?? 'None'); ?>
+                </div>
             </div>
+        </div>
         <?php else: ?>
-             <div class="stat-card" style="border-color: #e67e22;">
-                <h4>Students</h4>
-                <p><?php echo count($my_students); ?></p>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#1e40af,#1e3a8a);"><i class="fas fa-users"></i></div>
+            <div class="stat-content">
+                <div class="stat-label">Students</div>
+                <div class="stat-value"><?php echo count($my_students); ?></div>
             </div>
+        </div>
         <?php endif; ?>
-        
-        <div class="stat-card" style="border-color: #3498db;">
-            <h4>Courses</h4>
-            <p><?php echo count($courses); ?></p>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background:linear-gradient(135deg,#065f46,#022c22);"><i class="fas fa-book-open"></i></div>
+            <div class="stat-content">
+                <div class="stat-label">Courses</div>
+                <div class="stat-value"><?php echo count($courses); ?></div>
+            </div>
         </div>
     </div>
 
-    <div class="section">
-        <h2><i class="fas fa-layer-group"></i> Recent Materials</h2>
+    <!-- Recent Materials -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2><i class="fas fa-layer-group"></i> Recent Materials</h2>
+            <a href="courses.php" class="btn btn-outline btn-sm"><i class="fas fa-arrow-right"></i> View All</a>
+        </div>
+
         <?php if (count($courses) > 0): ?>
-            <div class="grid-courses">
-                <?php foreach (array_slice($courses, 0, 3) as $course): ?>
-                <div class="course-card">
-                    <div class="course-thumb">
-                        <?php if ($course['thumbnail_path']): ?>
-                            <img src="<?php echo SITE_URL . '/' . $course['thumbnail_path']; ?>">
-                        <?php endif; ?>
-                    </div>
-                    <div class="course-body">
-                        <div class="course-title"><?php echo htmlspecialchars($course['title']); ?></div>
-                        <div class="course-desc">Level <?php echo $course['khan_level_min']; ?>-<?php echo $course['khan_level_max']; ?></div>
-                        <a href="courses.php" class="btn btn-outline">View Details</a>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;">
+            <?php foreach (array_slice($courses,0,3) as $course): ?>
+            <div style="background:var(--light);border-radius:10px;overflow:hidden;border:1px solid var(--border);transition:var(--transition);display:flex;flex-direction:column;"
+                 onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.1)'"
+                 onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+                <div style="height:140px;background:linear-gradient(135deg,var(--crimson-dark),var(--ink));position:relative;overflow:hidden;">
+                    <?php if ($course['thumbnail_path']): ?>
+                        <img src="<?php echo SITE_URL . '/' . $course['thumbnail_path']; ?>" style="width:100%;height:100%;object-fit:cover;opacity:0.85;">
+                    <?php else: ?>
+                        <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:2.5rem;color:rgba(201,168,76,0.35);">
+                            <i class="fas fa-scroll"></i>
+                        </div>
+                    <?php endif; ?>
+                    <div style="position:absolute;top:10px;left:10px;">
+                        <span style="background:rgba(0,0,0,0.6);color:var(--gold);padding:3px 10px;border-radius:50px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;backdrop-filter:blur(4px);">
+                            <?php echo ucfirst($course['category']); ?>
+                        </span>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                <div style="padding:1.125rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="font-family:'Cinzel',serif;font-weight:700;font-size:0.925rem;color:var(--ink);margin-bottom:0.375rem;line-height:1.3;">
+                        <?php echo htmlspecialchars($course['title']); ?>
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem;flex:1;">
+                        Khan Level <?php echo $course['khan_level_min']; ?>–<?php echo $course['khan_level_max']; ?>
+                    </div>
+                    <a href="view_course.php?id=<?php echo $course['id']; ?>"
+                       class="btn btn-primary btn-sm btn-block">
+                        <i class="fas fa-play"></i> Start Module
+                    </a>
+                </div>
             </div>
-            <div style="margin-top:1rem; text-align:center;">
-                <a href="courses.php" class="btn btn-primary" style="max-width:200px;">View All Courses</a>
-            </div>
+            <?php endforeach; ?>
+        </div>
         <?php else: ?>
-            <div style="padding:2rem; text-align:center; background:white; border-radius:12px;">
-                <p>No courses available currently.</p>
-            </div>
+        <div class="empty-state">
+            <i class="fas fa-book-open"></i>
+            <h3>No Materials Yet</h3>
+            <p>Training materials will appear here as they are assigned to your level.</p>
+        </div>
         <?php endif; ?>
     </div>
+
+    <?php if ($user_role === 'instructor' && count($my_students) > 0): ?>
+    <!-- Instructor quick view -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2><i class="fas fa-users"></i> My Students</h2>
+            <a href="instructor_students.php" class="btn btn-outline btn-sm"><i class="fas fa-arrow-right"></i> View All</a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;">
+            <?php foreach (array_slice($my_students,0,6) as $s): ?>
+            <div style="background:var(--light);padding:1.125rem;border-radius:var(--radius);border:1px solid var(--border);display:flex;align-items:center;gap:0.875rem;">
+                <div class="cell-avatar" style="width:44px;height:44px;font-size:1rem;flex-shrink:0;"><?php echo strtoupper(substr($s['full_name'],0,1)); ?></div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:0.875rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($s['full_name']); ?></div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);">Khan <?php echo $s['current_khan_level']; ?></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
 </div>
 
 <?php include 'includes/user_footer.php'; ?>

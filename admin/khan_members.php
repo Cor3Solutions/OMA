@@ -4,6 +4,11 @@ require_once '../config/database.php';
 requireAdmin();
 
 $conn = getDbConnection();
+
+// Pending refresher requests count (for badge)
+$pending_refresher_count = (int)$conn->query(
+    "SELECT COUNT(*) c FROM refresher_requests WHERE status = 'pending'"
+)->fetch_assoc()['c'];
 require_once 'includes/activity_helper.php';
 $success = '';
 
@@ -29,55 +34,78 @@ function nextMemberSerial($conn) {
 $error = '';
 
 // ══════════════════════════════════════════════════════════════════════════
-// AUTO-REFRESHER CHECK
-// Runs silently on every page load.
-// Any active member whose last promotion/refresher date is > 6 months ago
-// is automatically flipped to "refresher" status and logged.
+// AUTO STATUS ESCALATION — runs silently on every page load
+//
+//  active   → refresher  : no training OR promotion in the last 3 months
+//  refresher → inactive  : still no training OR promotion after 6 months
+//                          (i.e. was already refresher and another 3 months passed)
 // ══════════════════════════════════════════════════════════════════════════
-$refresher_cutoff = date('Y-m-d', strtotime('-6 months'));
-$stale_members = $conn->query("
-    SELECT km.id, km.full_name, km.status, km.current_khan_level,
+$cutoff_3m = date('Y-m-d', strtotime('-3 months'));
+$cutoff_6m = date('Y-m-d', strtotime('-6 months'));
+
+// ── Step 1: active → refresher (3 months no activity) ─────────────────
+$to_refresher = $conn->query("
+    SELECT km.id, km.full_name, km.current_khan_level,
            km.date_promoted, km.date_joined,
            MAX(kth.training_date) AS last_training
     FROM khan_members km
     LEFT JOIN khan_training_history kth ON kth.member_id = km.id
     WHERE km.status = 'active'
     GROUP BY km.id
-    HAVING (
-        last_training IS NULL
-        OR last_training < '$refresher_cutoff'
-    )
-    AND (
-        km.date_promoted IS NULL
-        OR km.date_promoted < '$refresher_cutoff'
-    )
-    AND (
-        km.date_joined IS NULL
-        OR km.date_joined < '$refresher_cutoff'
-    )
+    HAVING (last_training IS NULL OR last_training < '$cutoff_3m')
+       AND (km.date_promoted IS NULL OR km.date_promoted < '$cutoff_3m')
+       AND (km.date_joined   IS NULL OR km.date_joined   < '$cutoff_3m')
 ");
 
 $auto_refreshed = 0;
-if ($stale_members && $stale_members->num_rows > 0) {
-    while ($stale = $stale_members->fetch_assoc()) {
-        $stale_id = (int)$stale['id'];
-        $conn->query("UPDATE khan_members SET status = 'refresher' WHERE id = $stale_id AND status = 'active'");
+if ($to_refresher && $to_refresher->num_rows > 0) {
+    while ($s = $to_refresher->fetch_assoc()) {
+        $sid = (int)$s['id'];
+        $conn->query("UPDATE khan_members SET status = 'refresher' WHERE id = $sid AND status = 'active'");
         if ($conn->affected_rows > 0) {
-            $last = $stale['last_training'] ?? $stale['date_promoted'] ?? $stale['date_joined'] ?? 'unknown';
-            logActivity(
-                $conn, 'refresher', 'khan_members', $stale_id,
-                $stale['full_name'],
-                'Auto-flagged: No promotion or training record in the last 6 months. ' .
-                'Last activity: ' . $last . '. Khan Level: ' . $stale['current_khan_level'] . '.',
-                [], []
-            );
+            $last = $s['last_training'] ?? $s['date_promoted'] ?? $s['date_joined'] ?? 'unknown';
+            logActivity($conn, 'refresher', 'khan_members', $sid, $s['full_name'],
+                'Auto-flagged: No promotion or training in the last 3 months. ' .
+                'Last activity: ' . $last . '. Khan Level: ' . $s['current_khan_level'] . '.', [], []);
             $auto_refreshed++;
         }
     }
 }
-if ($auto_refreshed > 0) {
-    $success = $auto_refreshed . ' member(s) automatically flagged as "Needs Refresher" (no activity in 6 months).';
+
+// ── Step 2: refresher → inactive (6 months no activity) ───────────────
+$to_inactive = $conn->query("
+    SELECT km.id, km.full_name, km.current_khan_level,
+           km.date_promoted, km.date_joined,
+           MAX(kth.training_date) AS last_training
+    FROM khan_members km
+    LEFT JOIN khan_training_history kth ON kth.member_id = km.id
+    WHERE km.status = 'refresher'
+    GROUP BY km.id
+    HAVING (last_training IS NULL OR last_training < '$cutoff_6m')
+       AND (km.date_promoted IS NULL OR km.date_promoted < '$cutoff_6m')
+       AND (km.date_joined   IS NULL OR km.date_joined   < '$cutoff_6m')
+");
+
+$auto_inactivated = 0;
+if ($to_inactive && $to_inactive->num_rows > 0) {
+    while ($s = $to_inactive->fetch_assoc()) {
+        $sid = (int)$s['id'];
+        $conn->query("UPDATE khan_members SET status = 'inactive' WHERE id = $sid AND status = 'refresher'");
+        if ($conn->affected_rows > 0) {
+            $last = $s['last_training'] ?? $s['date_promoted'] ?? $s['date_joined'] ?? 'unknown';
+            logActivity($conn, 'edit', 'khan_members', $sid, $s['full_name'],
+                'Auto-inactivated: No promotion or training in the last 6 months (was Refresher). ' .
+                'Last activity: ' . $last . '. Khan Level: ' . $s['current_khan_level'] . '.', [], []);
+            $auto_inactivated++;
+        }
+    }
 }
+
+// ── Collect messages ───────────────────────────────────────────────────
+$auto_msgs = [];
+if ($auto_refreshed   > 0) $auto_msgs[] = $auto_refreshed   . ' member(s) flagged as Needs Refresher (no activity in 3 months).';
+if ($auto_inactivated > 0) $auto_msgs[] = $auto_inactivated . ' member(s) set to Inactive (no activity in 6 months).';
+if (!empty($auto_msgs)) $success = implode(' ', $auto_msgs);
 // ══════════════════════════════════════════════════════════════════════════
 
 // ── PAGINATION HELPER ─────────────────────────────────────────────────
@@ -347,9 +375,19 @@ include 'includes/admin_header.php';
 <div class="admin-section">
     <div class="section-header">
         <h2><i class="fas fa-user-graduate"></i> Khan Members Management</h2>
-        <a href="manual_encode.php" class="btn btn-primary">
-            <i class="fas fa-keyboard"></i> Encode Members
-        </a>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+            <a href="refresher_requests.php" class="btn btn-outline" style="position:relative;">
+                <i class="fas fa-sync-alt"></i> Refresher Requests
+                <?php if ($pending_refresher_count > 0): ?>
+                <span style="position:absolute;top:-6px;right:-6px;background:#f44336;color:white;font-size:0.7rem;font-weight:700;min-width:18px;height:18px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 4px;">
+                    <?php echo $pending_refresher_count; ?>
+                </span>
+                <?php endif; ?>
+            </a>
+            <a href="manual_encode.php" class="btn btn-primary">
+                <i class="fas fa-keyboard"></i> Encode Members
+            </a>
+        </div>
     </div>
 
     <div class="filters-row"

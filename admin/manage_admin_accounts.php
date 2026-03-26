@@ -137,9 +137,14 @@ include 'includes/admin_header.php';
 <div class="admin-section">
     <div class="section-header">
         <h2><i class="fas fa-user-shield"></i> Admin Accounts</h2>
-        <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
-            <i class="fas fa-plus-circle"></i> Add Admin
-        </button>
+        <div style="display:flex;gap:.625rem;align-items:center;">
+            <a href="admin_change_password.php" class="btn btn-outline btn-sm">
+                <i class="fas fa-lock"></i> Change My Password
+            </a>
+            <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='block'">
+                <i class="fas fa-plus-circle"></i> Add Admin
+            </button>
+        </div>
     </div>
 
     <div class="table-responsive">

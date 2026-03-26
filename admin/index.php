@@ -9,7 +9,6 @@ $conn = getDbConnection();
 $total_users       = $conn->query("SELECT COUNT(*) as t FROM users WHERE role != 'admin'")->fetch_assoc()['t'];
 $total_members     = $conn->query("SELECT COUNT(*) as t FROM khan_members WHERE status = 'active'")->fetch_assoc()['t'];
 $total_instructors = $conn->query("SELECT COUNT(*) as t FROM instructors WHERE status = 'active'")->fetch_assoc()['t'];
-$unread_messages   = $conn->query("SELECT COUNT(*) as t FROM contact_messages WHERE status = 'new'")->fetch_assoc()['t'];
 $total_affiliates  = $conn->query("SELECT COUNT(*) as t FROM affiliates WHERE status = 'active'")->fetch_assoc()['t'];
 $total_materials   = $conn->query("SELECT COUNT(*) as t FROM course_materials WHERE status = 'published'")->fetch_assoc()['t'];
 $total_events      = $conn->query("SELECT COUNT(*) as t FROM event_gallery WHERE status = 'active'")->fetch_assoc()['t'];
@@ -285,12 +284,7 @@ include 'includes/admin_header.php';
             <div class="scard-emoji">🧑‍🏫</div>
             <div class="scard-val"><?php echo number_format($total_instructors); ?></div>
             <div class="scard-label">Instructors</div>
-        </div>
-        <div class="scard c-blue">
-            <div class="scard-emoji">✉️</div>
-            <div class="scard-val"><?php echo number_format($unread_messages); ?></div>
-            <div class="scard-label">New Messages</div>
-        </div>
+        </div> 
         <div class="scard c-purple">
             <div class="scard-emoji">🤝</div>
             <div class="scard-val"><?php echo number_format($total_affiliates); ?></div>

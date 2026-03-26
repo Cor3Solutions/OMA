@@ -1,442 +1,220 @@
 <?php
-$page_title = "Change Password";
+$page_title = "My Profile";
 require_once '../config/database.php';
 requireLogin();
 
-$conn = getDbConnection();
-$user_id = $_SESSION['user_id'];
+$conn      = getDbConnection();
+$user_id   = $_SESSION['user_id'];
 $user_role = $_SESSION['user_role'];
 
-// Redirect admins
-if ($user_role === 'admin') {
-    header('Location: ' . SITE_URL . '/admin/index.php');
-    exit;
-}
+if ($user_role === 'admin') { header('Location: ' . SITE_URL . '/admin/index.php'); exit; }
 
 $success = '';
-$error = '';
+$error   = '';
 
-// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $current_password = $_POST['current_password'];
-    $new_password = $_POST['new_password'];
-    $confirm_password = $_POST['confirm_password'];
-    
-    // Get current user password
-    $user_query = $conn->query("SELECT password FROM users WHERE id = $user_id");
-    $user = $user_query->fetch_assoc();
-    
-    // Verify current password
-    if (!password_verify($current_password, $user['password'])) {
-        $error = 'Current password is incorrect';
-    }
-    // Check if new passwords match
-    elseif ($new_password !== $confirm_password) {
-        $error = 'New passwords do not match';
-    }
-    // Check password length
-    elseif (strlen($new_password) < 6) {
-        $error = 'Password must be at least 6 characters';
-    }
-    else {
-        // Update password
-        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("UPDATE users SET password=? WHERE id=?");
-        $stmt->bind_param("si", $hashed_password, $user_id);
-        
-        if ($stmt->execute()) {
-            $success = 'Password changed successfully!';
-            // Clear form
-            $_POST = [];
-        } else {
-            $error = 'Failed to change password';
+    $name  = sanitize($_POST['name']);
+    $email = sanitize($_POST['email']);
+    $phone = sanitize($_POST['phone']);
+
+    $check = $conn->query("SELECT id FROM users WHERE email = '" . $conn->real_escape_string($email) . "' AND id != $user_id");
+    if ($check->num_rows > 0) {
+        $error = 'Email already in use by another account.';
+    } else {
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare("UPDATE users SET name=?, email=?, phone=? WHERE id=?");
+            $stmt->bind_param("sssi", $name, $email, $phone, $user_id);
+            if (!$stmt->execute()) throw new Exception('Failed to update profile.');
+            $stmt->close();
+
+            if ($user_role === 'member') {
+                $training_location = sanitize($_POST['training_location']);
+                $notes             = sanitize($_POST['notes']);
+                $stmt = $conn->prepare("UPDATE khan_members SET full_name=?, email=?, phone=?, training_location=?, notes=? WHERE user_id=?");
+                $stmt->bind_param("sssssi", $name, $email, $phone, $training_location, $notes, $user_id);
+                if (!$stmt->execute()) throw new Exception('Failed to update member profile.');
+                $stmt->close();
+
+            } elseif ($user_role === 'instructor') {
+                $location       = sanitize($_POST['location']);
+                $specialization = sanitize($_POST['specialization']);
+                $bio            = sanitize($_POST['bio']);
+                $facebook_url   = sanitize($_POST['facebook_url']);
+
+                $current    = $conn->query("SELECT photo_path FROM instructors WHERE user_id = $user_id");
+                $photo_path = $current->num_rows > 0 ? $current->fetch_assoc()['photo_path'] : '';
+
+                if (!empty($_FILES['photo']['name'])) {
+                    if (!empty($photo_path) && file_exists($photo_path)) deleteFile($photo_path);
+                    $upload = uploadFile($_FILES['photo'], UPLOAD_DIR . 'instructors/', ['image/jpeg','image/png','image/gif','image/webp']);
+                    if ($upload['success']) {
+                        $photo_path = 'assets/uploads/instructors/' . $upload['filename'];
+                    } else { throw new Exception($upload['message']); }
+                }
+                $stmt = $conn->prepare("UPDATE instructors SET name=?, photo_path=?, location=?, specialization=?, bio=?, facebook_url=?, email=?, phone=? WHERE user_id=?");
+                $stmt->bind_param("ssssssssi", $name, $photo_path, $location, $specialization, $bio, $facebook_url, $email, $phone, $user_id);
+                if (!$stmt->execute()) throw new Exception('Failed to update instructor profile.');
+                $stmt->close();
+            }
+
+            $conn->commit();
+            $_SESSION['user_name'] = $name;
+            $success = 'Profile updated successfully!';
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error = $e->getMessage();
         }
-        $stmt->close();
     }
+}
+
+$user     = $conn->query("SELECT * FROM users WHERE id = $user_id")->fetch_assoc();
+$role_data = null;
+if ($user_role === 'member') {
+    $role_data = $conn->query("SELECT km.*, i.name as instructor_name FROM khan_members km LEFT JOIN instructors i ON km.instructor_id = i.id WHERE km.user_id = $user_id")->fetch_assoc();
+} elseif ($user_role === 'instructor') {
+    $role_data = $conn->query("SELECT * FROM instructors WHERE user_id = $user_id")->fetch_assoc();
 }
 
 include 'includes/user_header.php';
 ?>
 
-<div class="password-container">
+<div class="dashboard-container" style="max-width:900px;margin:0 auto;">
+
     <?php if ($success): ?>
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle"></i> <?php echo $success; ?>
-        </div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo $success; ?></div>
     <?php endif; ?>
-
     <?php if ($error): ?>
-        <div class="alert alert-error">
-            <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
-        </div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?php echo $error; ?></div>
     <?php endif; ?>
 
-    <div class="password-card">
-        <div class="card-header">
-            <div class="header-icon">
-                <i class="fas fa-shield-alt"></i>
+    <!-- Profile Hero -->
+    <div style="background:linear-gradient(135deg,var(--crimson-dark) 0%,#1a0000 100%);border-radius:var(--radius-lg);padding:2.25rem 2.5rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap;box-shadow:var(--shadow-lg);border:1px solid rgba(201,168,76,0.18);position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-50%;right:-5%;width:300px;height:300px;background:radial-gradient(circle,rgba(201,168,76,0.1) 0%,transparent 65%);border-radius:50%;pointer-events:none;"></div>
+
+        <?php if ($user_role === 'instructor' && $role_data && !empty($role_data['photo_path'])): ?>
+            <img src="<?php echo SITE_URL.'/'.$role_data['photo_path']; ?>"
+                 style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);box-shadow:var(--glow-gold);position:relative;z-index:1;flex-shrink:0;">
+        <?php else: ?>
+            <div style="width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:2.5rem;font-weight:700;color:var(--gold);border:3px solid var(--gold);box-shadow:var(--glow-gold);position:relative;z-index:1;flex-shrink:0;">
+                <?php echo strtoupper(substr($user['name'],0,1)); ?>
             </div>
-            <div>
-                <h1>Change Password</h1>
-                <p>Keep your account secure with a strong password</p>
+        <?php endif; ?>
+
+        <div style="position:relative;z-index:1;flex:1;">
+            <h1 style="color:white;font-size:1.75rem;margin-bottom:0.3rem;"><?php echo htmlspecialchars($user['name']); ?></h1>
+            <div style="color:rgba(255,255,255,0.55);font-size:0.9rem;margin-bottom:0.75rem;"><?php echo htmlspecialchars($user['serial_number']); ?></div>
+            <span class="badge badge-<?php echo $user_role; ?>"><?php echo ucfirst($user_role); ?></span>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:1.5rem;">
+
+        <!-- Basic Info -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <h2><i class="fas fa-user" style="color:var(--crimson);"></i> Basic Information</h2>
+            </div>
+            <div class="form-grid">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" name="name" class="form-input" value="<?php echo htmlspecialchars($user['name']); ?>" required>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Email Address *</label>
+                    <input type="email" name="email" class="form-input" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" name="phone" class="form-input" value="<?php echo htmlspecialchars($user['phone']); ?>" placeholder="09XX XXX XXXX">
+                </div>
             </div>
         </div>
 
-        <form method="POST" class="password-form" id="passwordForm">
+        <?php if ($user_role === 'member' && $role_data): ?>
+        <!-- Member Info (read-only fields) -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <h2><i class="fas fa-trophy" style="color:var(--crimson);"></i> Academic Information</h2>
+                <p class="section-note">Managed by your instructor — read only</p>
+            </div>
+            <div class="form-grid" style="margin-bottom:1.5rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Current Khan Level</label>
+                    <div class="readonly-field">Khan <?php echo $role_data['current_khan_level']; ?></div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Khan Color</label>
+                    <div class="readonly-field"><?php echo htmlspecialchars($role_data['khan_color'] ?: 'Not assigned'); ?></div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Date Joined</label>
+                    <div class="readonly-field"><?php echo formatDate($role_data['date_joined']); ?></div>
+                </div>
+                <?php if ($role_data['instructor_name']): ?>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Instructor</label>
+                    <div class="readonly-field"><?php echo htmlspecialchars($role_data['instructor_name']); ?></div>
+                </div>
+                <?php endif; ?>
+            </div>
             <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-lock"></i> Current Password *
-                </label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="current_password" class="form-input" id="currentPassword" required>
-                    <button type="button" class="toggle-password" onclick="togglePassword('currentPassword', this)">
-                        <i class="fas fa-eye"></i>
-                    </button>
+                <label class="form-label">Training Location</label>
+                <input type="text" name="training_location" class="form-input" value="<?php echo htmlspecialchars($role_data['training_location'] ?? ''); ?>">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Personal Notes</label>
+                <textarea name="notes" class="form-textarea" rows="3"><?php echo htmlspecialchars($role_data['notes'] ?? ''); ?></textarea>
+            </div>
+        </div>
+
+        <?php elseif ($user_role === 'instructor' && $role_data): ?>
+        <!-- Instructor Info -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <h2><i class="fas fa-chalkboard-teacher" style="color:var(--crimson);"></i> Instructor Information</h2>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Profile Photo</label>
+                <input type="file" name="photo" class="form-input" accept="image/*">
+                <small class="form-hint">Leave empty to keep current photo. JPG, PNG, WebP accepted.</small>
+            </div>
+            <div class="form-grid" style="margin-bottom:1.5rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Khan Level</label>
+                    <div class="readonly-field"><?php echo htmlspecialchars($role_data['khan_level']); ?></div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Title / Position</label>
+                    <div class="readonly-field"><?php echo htmlspecialchars($role_data['title'] ?: 'Not assigned'); ?></div>
                 </div>
             </div>
-
             <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-key"></i> New Password *
-                </label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="new_password" class="form-input" id="newPassword" required minlength="6">
-                    <button type="button" class="toggle-password" onclick="togglePassword('newPassword', this)">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
-                <div class="password-strength" id="passwordStrength"></div>
-                <small class="form-hint">Minimum 6 characters</small>
+                <label class="form-label">Location</label>
+                <input type="text" name="location" class="form-input" value="<?php echo htmlspecialchars($role_data['location'] ?? ''); ?>">
             </div>
-
             <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-check-double"></i> Confirm New Password *
-                </label>
-                <div class="password-input-wrapper">
-                    <input type="password" name="confirm_password" class="form-input" id="confirmPassword" required minlength="6">
-                    <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
+                <label class="form-label">Specialization</label>
+                <textarea name="specialization" class="form-textarea" rows="2"><?php echo htmlspecialchars($role_data['specialization'] ?? ''); ?></textarea>
             </div>
+            <div class="form-group">
+                <label class="form-label">Biography</label>
+                <textarea name="bio" class="form-textarea" rows="4"><?php echo htmlspecialchars($role_data['bio'] ?? ''); ?></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Facebook URL</label>
+                <input type="url" name="facebook_url" class="form-input" value="<?php echo htmlspecialchars($role_data['facebook_url'] ?? ''); ?>">
+            </div>
+        </div>
+        <?php endif; ?>
 
-            <div class="password-tips">
-                <h3><i class="fas fa-info-circle"></i> Password Tips</h3>
-                <ul>
-                    <li>Use at least 6 characters</li>
-                    <li>Mix uppercase and lowercase letters</li>
-                    <li>Include numbers and special characters</li>
-                    <li>Avoid common words or personal information</li>
-                </ul>
-            </div>
+        <!-- Actions -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+            <a href="dashboard.php" class="btn btn-outline"><i class="fas fa-times"></i> Cancel</a>
+        </div>
+    </form>
 
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Change Password
-                </button>
-                <a href="dashboard.php" class="btn btn-outline">
-                    <i class="fas fa-times"></i> Cancel
-                </a>
-            </div>
-        </form>
-    </div>
 </div>
-
-<style>
-.password-container {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.alert {
-    padding: 1rem 1.25rem;
-    border-radius: var(--radius);
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.alert-success {
-    background: #e8f5e9;
-    color: #2e7d32;
-    border-left: 4px solid #4caf50;
-}
-
-.alert-error {
-    background: #ffebee;
-    color: #c62828;
-    border-left: 4px solid #f44336;
-}
-
-.password-card {
-    background: white;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-}
-
-.card-header {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-    padding: 2rem;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.header-icon {
-    width: 64px;
-    height: 64px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-}
-
-.card-header h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.25rem;
-}
-
-.card-header p {
-    opacity: 0.9;
-    font-size: 0.9375rem;
-}
-
-.password-form {
-    padding: 2rem;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text);
-}
-
-.password-input-wrapper {
-    position: relative;
-}
-
-.form-input {
-    width: 100%;
-    padding: 0.875rem 3rem 0.875rem 1rem;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: var(--transition);
-}
-
-.form-input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
-}
-
-.toggle-password {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--text-light);
-    cursor: pointer;
-    padding: 0.5rem;
-    transition: var(--transition);
-}
-
-.toggle-password:hover {
-    color: var(--primary);
-}
-
-.password-strength {
-    margin-top: 0.5rem;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-    transition: var(--transition);
-}
-
-.password-strength::before {
-    content: '';
-    display: block;
-    height: 100%;
-    width: 0%;
-    transition: var(--transition);
-}
-
-.password-strength.weak::before {
-    width: 33%;
-    background: #f44336;
-}
-
-.password-strength.medium::before {
-    width: 66%;
-    background: #ffc107;
-}
-
-.password-strength.strong::before {
-    width: 100%;
-    background: #4caf50;
-}
-
-.form-hint {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--text-light);
-}
-
-.password-tips {
-    background: var(--light);
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-}
-
-.password-tips h3 {
-    font-size: 1rem;
-    margin-bottom: 0.75rem;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.password-tips ul {
-    list-style: none;
-    padding-left: 0;
-}
-
-.password-tips li {
-    padding: 0.375rem 0;
-    color: var(--text-light);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.password-tips li::before {
-    content: '✓';
-    color: var(--success);
-    font-weight: 700;
-}
-
-.form-actions {
-    display: flex;
-    gap: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-}
-
-.btn-outline {
-    background: transparent;
-    border: 2px solid var(--border);
-    color: var(--text);
-}
-
-.btn-outline:hover {
-    background: var(--light);
-    border-color: var(--text-light);
-}
-
-@media (max-width: 768px) {
-    .card-header {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .card-header h1 {
-        font-size: 1.5rem;
-    }
-    
-    .password-form {
-        padding: 1.5rem;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-}
-</style>
-
-<script>
-function togglePassword(inputId, button) {
-    const input = document.getElementById(inputId);
-    const icon = button.querySelector('i');
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-    } else {
-        input.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-    }
-}
-
-// Password strength indicator
-const newPassword = document.getElementById('newPassword');
-const strengthBar = document.getElementById('passwordStrength');
-
-newPassword.addEventListener('input', function() {
-    const password = this.value;
-    const strength = calculatePasswordStrength(password);
-    
-    strengthBar.className = 'password-strength';
-    if (strength > 0) {
-        if (strength < 3) {
-            strengthBar.classList.add('weak');
-        } else if (strength < 5) {
-            strengthBar.classList.add('medium');
-        } else {
-            strengthBar.classList.add('strong');
-        }
-    }
-});
-
-function calculatePasswordStrength(password) {
-    let strength = 0;
-    
-    if (password.length >= 6) strength++;
-    if (password.length >= 10) strength++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[^a-zA-Z\d]/.test(password)) strength++;
-    
-    return strength;
-}
-
-// Form validation
-document.getElementById('passwordForm').addEventListener('submit', function(e) {
-    const newPass = document.getElementById('newPassword').value;
-    const confirmPass = document.getElementById('confirmPassword').value;
-    
-    if (newPass !== confirmPass) {
-        e.preventDefault();
-        alert('New passwords do not match!');
-        return false;
-    }
-    
-    if (newPass.length < 6) {
-        e.preventDefault();
-        alert('Password must be at least 6 characters!');
-        return false;
-    }
-});
-</script>
 
 <?php include 'includes/user_footer.php'; ?>

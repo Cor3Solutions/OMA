@@ -1,6 +1,7 @@
 <?php
 $page_title = "Manage Affiliates";
 require_once '../config/database.php';
+require_once 'includes/activity_helper.php';
 requireAdmin();
 
 $conn = getDbConnection();
@@ -142,9 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 3. Delete Affiliate
     elseif (isset($_POST['delete_affiliate'])) {
         $id = (int)$_POST['id'];
-
-        // Archive before delete
-        require_once 'includes/activity_helper.php';
+ 
+         
         $fullRow = $conn->query("SELECT * FROM affiliates WHERE id = $id")->fetch_assoc();
         if ($fullRow) {
             archiveRecord($conn, 'affiliates', $id, $fullRow['name'], $fullRow);
