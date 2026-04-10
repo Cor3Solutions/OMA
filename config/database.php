@@ -3,7 +3,6 @@
  * Database Configuration
  * Oriental Muayboran Academy
  */
-
 // Database credentials
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'oma_database');
