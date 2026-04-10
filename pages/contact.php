@@ -3,10 +3,19 @@ $page_title = "Contact Us";
 $extra_head = '<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">';
 require_once '../config/database.php';
 
-$success = '';
-$error   = '';
+$success    = '';
+$error      = '';
+$active_tab = (isset($_GET['tab']) && $_GET['tab'] === 'enrollment') ? 'enrollment' : 'inquiry';
 
+if (!function_exists('sanitize')) {
+    function sanitize($data) {
+        return htmlspecialchars(strip_tags(trim($data)));
+    }
+}
+
+// ── INQUIRY HANDLER ───────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
+    $active_tab = 'inquiry';
     $name    = trim($_POST['name']);
     $email   = trim($_POST['email']);
     $phone   = trim($_POST['phone'] ?? '');
@@ -26,6 +35,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
             $_POST   = [];
         } else {
             $error = 'Failed to send message. Please try again.';
+        }
+        $stmt->close();
+        $conn->close();
+    }
+}
+
+// ── ENROLLMENT HANDLER ────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_enrollment'])) {
+    $active_tab = 'enrollment';
+
+    $last_name           = sanitize($_POST['last_name']           ?? '');
+    $first_name          = sanitize($_POST['first_name']          ?? '');
+    $middle_name         = sanitize($_POST['middle_name']         ?? '');
+    $date_of_birth       = sanitize($_POST['date_of_birth']       ?? '');
+    $place_of_birth      = sanitize($_POST['place_of_birth']      ?? '');
+    $sex                 = sanitize($_POST['sex']                 ?? '');
+    $civil_status        = sanitize($_POST['civil_status']        ?? '');
+    $religion            = sanitize($_POST['religion']            ?? '');
+    $citizenship         = sanitize($_POST['citizenship']         ?? '');
+    $occupation          = sanitize($_POST['occupation']          ?? '');
+    $address             = sanitize($_POST['address']             ?? '');
+    $cellphone           = sanitize($_POST['cellphone']           ?? '');
+    $email               = filter_var(trim($_POST['enroll_email'] ?? ''), FILTER_VALIDATE_EMAIL);
+    $blood_type          = sanitize($_POST['blood_type']          ?? '');
+    $weight_kg           = floatval($_POST['weight_kg']           ?? 0);
+    $height_cm           = floatval($_POST['height_cm']           ?? 0);
+    $injury_or_condition = sanitize($_POST['injury_or_condition'] ?? '');
+    $goals               = sanitize($_POST['goals']               ?? '');
+    $how_did_you_know    = sanitize($_POST['how_did_you_know']    ?? '');
+    $previous_khan       = isset($_POST['previous_khan']) ? 1 : 0;
+    $khan_level          = sanitize($_POST['khan_level']          ?? '');
+    $kru_name            = sanitize($_POST['kru_name']            ?? '');
+    $emergency_name      = sanitize($_POST['emergency_name']      ?? '');
+    $emergency_relation  = sanitize($_POST['emergency_relation']  ?? '');
+    $emergency_phone     = sanitize($_POST['emergency_phone']     ?? '');
+    $emergency_address   = sanitize($_POST['emergency_address']   ?? '');
+    $waiver_agreed       = isset($_POST['waiver_agreed']) ? 1 : 0;
+
+    if (!$last_name || !$first_name || !$cellphone || !$email || !$waiver_agreed) {
+        $error = 'Please fill in all required fields and agree to the Waiver &amp; Release.';
+    } else {
+        $conn = getDbConnection();
+        $stmt = $conn->prepare("
+            INSERT INTO enrollment_applications
+                (last_name, first_name, middle_name, date_of_birth, place_of_birth, sex, civil_status,
+                 religion, citizenship, occupation, address, cellphone, email, blood_type, weight_kg,
+                 height_cm, injury_or_condition, goals, how_did_you_know, previous_khan, khan_level,
+                 kru_name, emergency_name, emergency_relation, emergency_phone, emergency_address, waiver_agreed)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ");
+        $dob = $date_of_birth ?: null;
+        // 27 params: 14×s, 2×d, 3×s, 1×i, 2×s, 4×s, 1×i
+        $stmt->bind_param(
+            "ssssssssssssssddsssissssssi",
+            $last_name, $first_name, $middle_name, $dob, $place_of_birth, $sex, $civil_status,
+            $religion, $citizenship, $occupation, $address, $cellphone, $email, $blood_type,
+            $weight_kg, $height_cm, $injury_or_condition, $goals, $how_did_you_know,
+            $previous_khan, $khan_level, $kru_name,
+            $emergency_name, $emergency_relation, $emergency_phone, $emergency_address, $waiver_agreed
+        );
+        if ($stmt->execute()) {
+            $success = 'Your enrollment application has been submitted! We will contact you shortly.';
+            $_POST   = [];
+        } else {
+            $error = 'Failed to submit application. Please try again.';
         }
         $stmt->close();
         $conn->close();
@@ -172,6 +246,40 @@ body { background: var(--dark); color: var(--white); }
     padding: 90px 0 100px;
 }
 
+/* ============================================================
+   TABS
+   ============================================================ */
+.tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-gold);
+    margin-bottom: 40px;
+}
+.tab-btn {
+    font-family: var(--font-ui);
+    font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: rgba(255,255,255,0.38);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 14px 34px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 10px;
+    transition: color var(--ease), border-color var(--ease), background var(--ease);
+    position: relative; bottom: -1px;
+}
+.tab-btn:hover { color: var(--gold); }
+.tab-btn.active {
+    color: var(--gold);
+    border-bottom: 2px solid var(--gold);
+    background: rgba(212,175,55,0.04);
+}
+
+/* ============================================================
+   INQUIRY LAYOUT
+   ============================================================ */
 .contact-grid {
     display: grid;
     grid-template-columns: 1fr 1.6fr;
@@ -319,6 +427,11 @@ body { background: var(--dark); color: var(--white); }
     grid-template-columns: 1fr 1fr;
     gap: 16px;
 }
+.form-row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
 
 .form-group { margin-bottom: 1.4rem; }
 
@@ -333,6 +446,7 @@ body { background: var(--dark); color: var(--white); }
 .form-label .required { color: var(--gold); margin-left: 2px; }
 
 .form-input,
+.form-select,
 .form-textarea {
     width: 100%;
     padding: 12px 16px;
@@ -345,15 +459,25 @@ body { background: var(--dark); color: var(--white); }
     outline: none;
     box-sizing: border-box;
     transition: border-color var(--ease), background var(--ease), box-shadow var(--ease);
+    -webkit-appearance: none; appearance: none;
 }
 .form-input::placeholder,
 .form-textarea::placeholder { color: rgba(255,255,255,0.22); }
 .form-input:focus,
+.form-select:focus,
 .form-textarea:focus {
     border-color: rgba(212,175,55,0.55);
     background: rgba(212,175,55,0.04);
     box-shadow: 0 0 0 3px rgba(212,175,55,0.08);
 }
+.form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23D4AF37' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+.form-select option { background: #1a1a1a; color: #fff; }
 .form-textarea { resize: vertical; min-height: 130px; }
 
 .submit-btn {
@@ -401,18 +525,78 @@ body { background: var(--dark); color: var(--white); }
 .map-card:hover iframe { filter: grayscale(0) brightness(0.95) contrast(1.05); }
 
 /* ============================================================
+   ENROLLMENT EXTRAS
+   ============================================================ */
+.enroll-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-gold);
+    border-radius: 4px;
+    padding: 3rem 2.4rem;
+    position: relative;
+    margin-bottom: 28px;
+}
+.enroll-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, var(--gold), var(--red));
+}
+
+.enroll-section-title {
+    font-family: var(--font-ui);
+    font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--gold);
+    border-bottom: 1px solid var(--border-gold);
+    padding-bottom: 8px;
+    margin: 2rem 0 1.4rem;
+}
+
+.check-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 1rem;
+}
+.check-row input[type="checkbox"] {
+    margin-top: 3px; accent-color: var(--gold);
+    width: 16px; height: 16px; flex-shrink: 0; cursor: pointer;
+}
+.check-row label {
+    font-family: var(--font-body);
+    font-size: 1rem; color: var(--muted);
+    cursor: pointer; line-height: 1.5;
+}
+
+.waiver-box {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-gold);
+    border-radius: 2px;
+    padding: 1.2rem 1.4rem;
+    font-family: var(--font-body);
+    font-size: 0.95rem; color: rgba(255,255,255,0.5);
+    line-height: 1.7;
+    max-height: 160px; overflow-y: auto;
+    margin-bottom: 1.2rem;
+}
+.waiver-box::-webkit-scrollbar { width: 4px; }
+.waiver-box::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+.waiver-box::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 900px) {
     .contact-hero-content h1 { font-size: 2.6rem; }
     .contact-grid { grid-template-columns: 1fr; }
+    .form-row-3 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
     .contact-hero-content h1 { font-size: 1.9rem; }
     .hero-corner { width: 48px; height: 48px; }
-    .form-row { grid-template-columns: 1fr; }
-    .info-card, .form-card { padding: 2rem 1.5rem; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    .info-card, .form-card, .enroll-card { padding: 2rem 1.5rem; }
     .map-card iframe { height: 300px; }
+    .tab-btn { padding: 12px 16px; letter-spacing: 2px; font-size: 0.68rem; }
 }
 </style>
 
@@ -453,6 +637,25 @@ body { background: var(--dark); color: var(--white); }
      ============================================================ -->
 <section class="contact-section">
     <div class="container">
+
+        <!-- ── Tab Navigation ── -->
+        <nav class="tab-nav">
+            <a href="?tab=inquiry"
+               class="tab-btn <?php echo $active_tab === 'inquiry' ? 'active' : ''; ?>">
+                <i class="fas fa-envelope" style="font-size:0.8rem;"></i>
+                Send Inquiry
+            </a>
+            <a href="?tab=enrollment"
+               class="tab-btn <?php echo $active_tab === 'enrollment' ? 'active' : ''; ?>">
+                <i class="fas fa-clipboard-list" style="font-size:0.8rem;"></i>
+                Enrollment Form
+            </a>
+        </nav>
+
+        <?php if ($active_tab === 'inquiry'): ?>
+        <!-- ════════════════════════════════════════════════
+             INQUIRY TAB  (your original layout, unchanged)
+             ════════════════════════════════════════════════ -->
 
         <div class="contact-grid">
 
@@ -568,7 +771,263 @@ body { background: var(--dark); color: var(--white); }
             </iframe>
         </div>
 
-    </div>
+        <?php else: ?>
+        <!-- ════════════════════════════════════════════════
+             ENROLLMENT TAB
+             ════════════════════════════════════════════════ -->
+
+        <?php if ($error): ?>
+        <div class="alert alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <?php echo $error; ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($success): ?>
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <?php echo htmlspecialchars($success); ?>
+        </div>
+        <?php endif; ?>
+
+        <div class="enroll-card">
+            <h2 class="form-card-title">Membership Form</h2>
+            <p style="font-family:var(--font-body);color:var(--muted);font-size:1rem;margin:-1rem 0 2rem;font-style:italic;">
+                Please fill out all fields accurately. Fields marked <span style="color:var(--gold);">*</span> are required.
+            </p>
+
+            <form method="POST" action="?tab=enrollment">
+
+                <!-- Personal Information -->
+                <div class="enroll-section-title">Personal Information</div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label">Last Name <span class="required">*</span></label>
+                        <input type="text" name="last_name" class="form-input" placeholder="Last" required
+                               value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">First Name <span class="required">*</span></label>
+                        <input type="text" name="first_name" class="form-input" placeholder="First" required
+                               value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" name="middle_name" class="form-input" placeholder="Middle"
+                               value="<?php echo htmlspecialchars($_POST['middle_name'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label">Date of Birth</label>
+                        <input type="date" name="date_of_birth" class="form-input"
+                               value="<?php echo htmlspecialchars($_POST['date_of_birth'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Place of Birth</label>
+                        <input type="text" name="place_of_birth" class="form-input" placeholder="City / Province"
+                               value="<?php echo htmlspecialchars($_POST['place_of_birth'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sex</label>
+                        <select name="sex" class="form-select">
+                            <option value="">— Select —</option>
+                            <?php foreach (['Male','Female','Other'] as $s): ?>
+                            <option value="<?php echo $s; ?>" <?php echo (($_POST['sex'] ?? '') === $s) ? 'selected' : ''; ?>><?php echo $s; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label">Civil Status</label>
+                        <select name="civil_status" class="form-select">
+                            <option value="">— Select —</option>
+                            <?php foreach (['Single','Married','Widowed','Separated'] as $cs): ?>
+                            <option value="<?php echo $cs; ?>" <?php echo (($_POST['civil_status'] ?? '') === $cs) ? 'selected' : ''; ?>><?php echo $cs; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Religion</label>
+                        <input type="text" name="religion" class="form-input" placeholder="e.g. Catholic"
+                               value="<?php echo htmlspecialchars($_POST['religion'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Citizenship</label>
+                        <input type="text" name="citizenship" class="form-input" placeholder="e.g. Filipino"
+                               value="<?php echo htmlspecialchars($_POST['citizenship'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Occupation</label>
+                        <input type="text" name="occupation" class="form-input" placeholder="e.g. Student / Engineer"
+                               value="<?php echo htmlspecialchars($_POST['occupation'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Address</label>
+                        <input type="text" name="address" class="form-input" placeholder="Street, Barangay, City"
+                               value="<?php echo htmlspecialchars($_POST['address'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <!-- Contact & Health -->
+                <div class="enroll-section-title">Contact &amp; Health</div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label">Cellphone <span class="required">*</span></label>
+                        <input type="tel" name="cellphone" class="form-input" placeholder="+63 9XX XXX XXXX" required
+                               value="<?php echo htmlspecialchars($_POST['cellphone'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address <span class="required">*</span></label>
+                        <input type="email" name="enroll_email" class="form-input" placeholder="you@example.com" required
+                               value="<?php echo htmlspecialchars($_POST['enroll_email'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Blood Type</label>
+                        <select name="blood_type" class="form-select">
+                            <option value="">— Select —</option>
+                            <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $bt): ?>
+                            <option value="<?php echo $bt; ?>" <?php echo (($_POST['blood_type'] ?? '') === $bt) ? 'selected' : ''; ?>><?php echo $bt; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Weight (kg)</label>
+                        <input type="number" name="weight_kg" class="form-input" step="0.01" min="0" placeholder="e.g. 65.5"
+                               value="<?php echo htmlspecialchars($_POST['weight_kg'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Height (cm)</label>
+                        <input type="number" name="height_cm" class="form-input" step="0.01" min="0" placeholder="e.g. 170"
+                               value="<?php echo htmlspecialchars($_POST['height_cm'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Previous / Present Injury or Medical Condition?</label>
+                    <textarea name="injury_or_condition" class="form-textarea" rows="3"
+                              placeholder="Leave blank if none."><?php echo htmlspecialchars($_POST['injury_or_condition'] ?? ''); ?></textarea>
+                </div>
+
+                <!-- About Your Training -->
+                <div class="enroll-section-title">About Your Training</div>
+
+                <div class="form-group">
+                    <label class="form-label">What are your goals in joining the program?</label>
+                    <textarea name="goals" class="form-textarea" rows="3"
+                              placeholder="e.g. Self-defense, fitness, competition..."><?php echo htmlspecialchars($_POST['goals'] ?? ''); ?></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">How did you hear about Oriental Muayboran Academy?</label>
+                    <select name="how_did_you_know" class="form-select">
+                        <option value="">— Select —</option>
+                        <?php foreach (['Facebook / Social Media','Friend / Referral','Google Search','Event / Competition','Walk-in','Others'] as $opt): ?>
+                        <option value="<?php echo $opt; ?>" <?php echo (($_POST['how_did_you_know'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="check-row" style="margin-top:0.5rem;">
+                    <input type="checkbox" name="previous_khan" id="chk_khan" value="1"
+                           <?php echo isset($_POST['previous_khan']) ? 'checked' : ''; ?>
+                           onchange="document.getElementById('khan_details').style.display = this.checked ? 'block' : 'none'">
+                    <label for="chk_khan">Do you have a previous Khan level?</label>
+                </div>
+
+                <div id="khan_details"
+                     style="display:<?php echo isset($_POST['previous_khan']) ? 'block' : 'none'; ?>; margin-top:1rem;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Khan Level</label>
+                            <input type="text" name="khan_level" class="form-input" placeholder="e.g. Khan 3"
+                                   value="<?php echo htmlspecialchars($_POST['khan_level'] ?? ''); ?>">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Who is your Kru?</label>
+                            <input type="text" name="kru_name" class="form-input" placeholder="Instructor name"
+                                   value="<?php echo htmlspecialchars($_POST['kru_name'] ?? ''); ?>">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emergency Contact -->
+                <div class="enroll-section-title">Person to Contact in Case of Emergency</div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="emergency_name" class="form-input" placeholder="Full name"
+                               value="<?php echo htmlspecialchars($_POST['emergency_name'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Relationship</label>
+                        <input type="text" name="emergency_relation" class="form-input" placeholder="e.g. Parent, Spouse"
+                               value="<?php echo htmlspecialchars($_POST['emergency_relation'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Cellphone Number</label>
+                        <input type="tel" name="emergency_phone" class="form-input" placeholder="+63 9XX XXX XXXX"
+                               value="<?php echo htmlspecialchars($_POST['emergency_phone'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Address</label>
+                        <input type="text" name="emergency_address" class="form-input" placeholder="Street, Barangay, City"
+                               value="<?php echo htmlspecialchars($_POST['emergency_address'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <!-- Waiver -->
+                <div class="enroll-section-title">Waiver and Release</div>
+
+                <div class="waiver-box">
+                    I, <strong style="color:rgba(255,255,255,0.75);">[Applicant]</strong>, hereby release the Oriental Muayboran Academy,
+                    also known as OMA; its officials, instructors, staffs, and members from any liability to the matters set forth below.
+                    I understand that by signing this Waiver and Release, I expressly and willingly agree to take part in trainings,
+                    tournaments, and other activities entirely at my own risk. On behalf of myself, my heirs, assigns, and next of kin;
+                    I waive all claims for damages, injuries and/or death sustained to me or my property that I may have against the
+                    above named released parties relating to such activities. I am fully aware that the activities that I will participate
+                    in are inherently dangerous. By this waiver, I assume any risk, and take full responsibility and WAIVE any and all
+                    claims of personal injury, including severe bodily injury, damage to personal property, and death resulting from any
+                    of the activities associated to Oriental Muayboran Academy, including but not limited to receiving lessons at the
+                    facility and its equipment, practicing and engaging in martial arts activities and related activities on and off the
+                    premises of Oriental Muayboran Academy.
+                </div>
+
+                <div class="check-row">
+                    <input type="checkbox" name="waiver_agreed" id="chk_waiver" value="1" required
+                           <?php echo isset($_POST['waiver_agreed']) ? 'checked' : ''; ?>>
+                    <label for="chk_waiver">
+                        I have read, understood, and agree to the Waiver and Release above.
+                        <span style="color:var(--gold);">*</span>
+                    </label>
+                </div>
+
+                <button type="submit" name="submit_enrollment" class="submit-btn" style="margin-top:1.8rem;">
+                    <i class="fas fa-clipboard-check" style="margin-right:8px;font-size:0.75rem;"></i>
+                    Submit Enrollment Application
+                </button>
+
+            </form>
+        </div><!-- /.enroll-card -->
+
+        <?php endif; ?>
+
+    </div><!-- /.container -->
 </section>
 
 <?php include '../includes/footer.php'; ?>

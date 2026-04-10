@@ -18,39 +18,163 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <link rel="stylesheet" href="<?php echo SITE_URL; ?>/admin/assets/css/admin_style.css">
-
     <link rel="icon" type="image/x-icon" href="<?php echo SITE_URL; ?>/assets/images/favicon.ico">
 
     <style>
-        .sidebar-nav .nav-item {
-            display: flex;
-            /* Aligns icon and text in a row */
-            align-items: center;
-            /* Centers them vertically */
-            gap: 12px;
-            /* Adds space between icon and text */
-        }
+    /* ── Sidebar nav item base ── */
+    .sidebar-nav .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    /* ══════════════════════════════════════════
+       SIDEBAR HEADER — logo group
+       ══════════════════════════════════════════ */
+    .sidebar-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 18px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        background: rgba(0,0,0,0.15);
+    }
+
+    /* OMA logo */
+    .sidebar-logo-oma {
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+        flex-shrink: 0;
+        filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
+    }
+
+    /* Text block */
+    .sidebar-logo-text {
+        flex: 1;
+        min-width: 0;
+    }
+    .sidebar-logo-text strong {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.3;
+        letter-spacing: 0.3px;
+    }
+    .sidebar-logo-text span {
+        display: block;
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.45);
+        letter-spacing: 0.5px;
+        margin-top: 2px;
+    }
+
+    /* THFP partner badge — sits at the right of the sidebar header */
+    .sidebar-thfp-wrap {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(212,175,55,0.25);
+        background: rgba(212,175,55,0.06);
+        transition: border-color 0.2s, background 0.2s;
+        text-decoration: none;
+        cursor: default;
+    }
+    .sidebar-thfp-wrap:hover {
+        border-color: rgba(212,175,55,0.55);
+        background: rgba(212,175,55,0.12);
+    }
+    .sidebar-thfp-logo {
+        width: 38px;
+        height: 38px;
+        object-fit: contain;
+        filter: drop-shadow(0 0 6px rgba(255,255,255,0.25));
+    }
+    .sidebar-thfp-label {
+        font-size: 0.52rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: rgba(212,175,55,0.8);
+        text-align: center;
+        line-height: 1;
+    }
+
+    /* ══════════════════════════════════════════
+       THFP FOOTER CARD inside sidebar
+       (shows at bottom of nav, above logout)
+       ══════════════════════════════════════════ */
+    .sidebar-thfp-footer {
+        margin: 12px 12px 4px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(212,175,55,0.2);
+        background: rgba(212,175,55,0.04);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .sidebar-thfp-footer:hover {
+        border-color: rgba(212,175,55,0.45);
+        background: rgba(212,175,55,0.1);
+    }
+    .sidebar-thfp-footer img {
+        width: 32px; height: 32px;
+        object-fit: contain;
+        flex-shrink: 0;
+        filter: drop-shadow(0 0 4px rgba(255,255,255,0.2));
+    }
+    .sidebar-thfp-footer-text strong {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: rgba(212,175,55,0.9);
+        letter-spacing: 1px;
+    }
+    .sidebar-thfp-footer-text span {
+        display: block;
+        font-size: 0.62rem;
+        color: rgba(255,255,255,0.4);
+        margin-top: 1px;
+    }
     </style>
 </head>
 
 <body class="admin-body">
     <div class="admin-wrapper">
         <aside class="admin-sidebar">
-            <div class="sidebar-header" style="display: flex; align-items: center; padding: 15px;">
-                <img src="../assets/images/oma.png" alt="OMA Logo"
-                    style="width: 80px; height: auto; margin-right: 10px;">
-                <span style="font-size: 14px; font-weight: bold; color: white; line-height: 1.2;">
-                    Oriental Muay Boran Academy Admin
-                </span>
+
+            <!-- ── Sidebar Header: OMA logo + title + THFP badge ── -->
+            <div class="sidebar-header">
+                <img src="../assets/images/oma.png"
+                     alt="OMA Logo"
+                     class="sidebar-logo-oma">
+
+                <div class="sidebar-logo-text">
+                    <strong>Oriental Muay Boran Academy</strong>
+                    <span>Admin Panel</span>
+                </div>
+
+                <!-- THFP badge — right side of header -->
+                <div class="sidebar-thfp-wrap" title="THFP — Official Partner">
+                    <img src="../assets/images/thfp.png"
+                         alt="THFP"
+                         class="sidebar-thfp-logo">
+                    <span class="sidebar-thfp-label">THFP</span>
+                </div>
             </div>
 
+            <!-- ── Sidebar Nav ── -->
             <nav class="sidebar-nav">
                 <a href="<?php echo SITE_URL; ?>/admin/index.php"
                     class="nav-item <?php echo $current_admin_page === 'index' ? 'active' : ''; ?>">
@@ -75,11 +199,13 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <i class="fas fa-users-cog fa-fw"></i>
                     <span>Admin Accounts</span>
                 </a>
+
                 <a href="<?php echo SITE_URL; ?>/admin/admin_change_password.php"
                     class="nav-item <?php echo $current_admin_page === 'admin_change_password' ? 'active' : ''; ?>">
                     <i class="fas fa-lock fa-fw"></i>
                     <span>Change Password</span>
-                </a> 
+                </a>
+
                 <a href="<?php echo SITE_URL; ?>/admin/affiliates.php"
                     class="nav-item <?php echo $current_admin_page === 'affiliates' ? 'active' : ''; ?>">
                     <i class="fas fa-handshake fa-fw"></i>
@@ -94,7 +220,7 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
 
                 <a href="<?php echo SITE_URL; ?>/admin/refresher_requests.php"
                     class="nav-item <?php echo $current_admin_page === 'refresher_requests' ? 'active' : ''; ?>">
-                    <i class="fas fa-book-open fa-fw"></i>
+                    <i class="fas fa-redo fa-fw"></i>
                     <span>Refresher Requests</span>
                 </a>
 
@@ -111,29 +237,43 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                     <?php
                     $conn_check = getDbConnection();
                     $new_messages = $conn_check->query("SELECT COUNT(*) as count FROM contact_messages WHERE status = 'new'")->fetch_assoc()['count'];
-                    if ($new_messages > 0):
-                        ?>
-                        <span class="badge"
-                            style="background: var(--admin-danger); color: white; margin-left: auto; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem;"><?php echo $new_messages; ?></span>
+                    if ($new_messages > 0): ?>
+                        <span class="badge" style="background:var(--admin-danger);color:white;margin-left:auto;padding:0.25rem 0.5rem;border-radius:9999px;font-size:0.75rem;">
+                            <?php echo $new_messages; ?>
+                        </span>
                     <?php endif; ?>
                 </a>
 
                 <div class="nav-divider"></div>
 
+                <!-- ── THFP card above the utility links ── -->
+                <a href="<?php echo SITE_URL; ?>/index.php"
+                   class="sidebar-thfp-footer"
+                   title="THFP — Official Partner">
+                    <img src="../assets/images/thfp.png" alt="THFP">
+                    <div class="sidebar-thfp-footer-text">
+                        <strong>THFP</strong>
+                        <span>Official Partner</span>
+                    </div>
+                </a>
+
                 <a href="<?php echo SITE_URL; ?>/index.php" class="nav-item">
                     <i class="fas fa-globe fa-fw"></i>
                     <span>View Site</span>
                 </a>
+
                 <a href="<?php echo SITE_URL; ?>/admin/activity_log.php"
                     class="nav-item <?php echo $current_admin_page === 'activity_log' ? 'active' : ''; ?>">
                     <i class="fas fa-history fa-fw"></i>
                     <span>Activity Log</span>
                 </a>
+
                 <a href="<?php echo SITE_URL; ?>/admin/backup_database.php"
                     class="nav-item <?php echo $current_admin_page === 'backup_database' ? 'active' : ''; ?>">
                     <i class="fas fa-database fa-fw"></i>
                     <span>Backup Database</span>
                 </a>
+
                 <a href="<?php echo SITE_URL; ?>/pages/logout.php" class="nav-item">
                     <i class="fas fa-sign-out-alt fa-fw"></i>
                     <span>Logout</span>
