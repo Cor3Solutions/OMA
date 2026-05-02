@@ -206,7 +206,7 @@ $basePath = $isInPages ? '../' : '';
                     </a>
 
                     <!-- THFP — mobile only (hidden on desktop via CSS) -->
-                    <a href="<?php echo $basePath; ?>index.php" title="THFP" class="header-logo-thfp-mobile">
+                    <a href="<?php echo SITE_URL; ?>/pages/thfp.php" title="THFP" class="header-logo-thfp-mobile">
                         <img src="<?php echo $basePath; ?>assets/images/thfp.png" alt="THFP">
                     </a>
                 </div>
@@ -261,7 +261,7 @@ $basePath = $isInPages ? '../' : '';
 
                         <!-- ── THFP nav tab — desktop only ── -->
                         <li class="nav-item nav-thfp-tab">
-                            <a href="<?php echo $basePath; ?>index.php" class="nav-thfp-link" title="THFP">
+                            <a href="<?php echo SITE_URL; ?>/pages/thfp.php" class="nav-thfp-link" title="THFP">
                                 <img src="<?php echo $basePath; ?>assets/images/thfp.png" alt="THFP"
                                     class="nav-thfp-logo">
                                 <span class="nav-thfp-label">

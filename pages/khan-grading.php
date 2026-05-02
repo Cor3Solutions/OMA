@@ -476,9 +476,7 @@ body { background: var(--dark); color: var(--white); }
                         </ul>
                     </div>
 
-                    <img src="../assets/color/<?php echo $id; ?>.png"
-                         class="portrait-main"
-                         alt="Khan <?php echo $id; ?> Level">
+                     
                 </div>
 
                 <div class="card-divider"></div>

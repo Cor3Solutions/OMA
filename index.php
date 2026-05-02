@@ -12,51 +12,7 @@ while ($row = $affiliates_result->fetch_assoc()) {
 }
 ?>
 
-<!-- ============================================================
-     INTRO ANIMATION OVERLAY
-     Plays once per session. Fades out when video ends.
-     ============================================================ -->
-<div id="introOverlay" style="
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.8s ease;
-">
-    <video id="introVideo" src="assets/images/animation.mp4" autoplay muted playsinline preload="auto" style="
-               width: 100%;
-               height: 100%;
-               object-fit: cover;
-               display: block;
-           ">
-    </video>
-
-    <!-- Skip button — bottom right -->
-    <button id="introSkip" onclick="dismissIntro()" style="
-        position: absolute;
-        bottom: 32px;
-        right: 32px;
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.3);
-        color: rgba(255,255,255,0.7);
-        font-family: 'Rajdhani', sans-serif;
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 3px;
-        text-transform: uppercase;
-        padding: 10px 22px;
-        border-radius: 2px;
-        cursor: pointer;
-        transition: background 0.2s, color 0.2s, border-color 0.2s;
-    " onmouseover="this.style.background='rgba(212,175,55,0.2)';this.style.borderColor='rgba(212,175,55,0.6)';this.style.color='#D4AF37';"
-        onmouseout="this.style.background='rgba(255,255,255,0.1)';this.style.borderColor='rgba(255,255,255,0.3)';this.style.color='rgba(255,255,255,0.7)';">
-        Skip &#x276F;
-    </button>
-</div>
-
+ 
 <script>
     (function () {
         var overlay = document.getElementById('introOverlay');

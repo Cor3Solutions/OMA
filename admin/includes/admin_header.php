@@ -247,7 +247,7 @@ $current_admin_page = basename($_SERVER['PHP_SELF'], '.php');
                 <div class="nav-divider"></div>
 
                 <!-- ── THFP card above the utility links ── -->
-                <a href="<?php echo SITE_URL; ?>/index.php"
+                <a href="<?php echo SITE_URL; ?>/admin/thfpadmin.php"
                    class="sidebar-thfp-footer"
                    title="THFP — Official Partner">
                     <img src="../assets/images/thfp.png" alt="THFP">
