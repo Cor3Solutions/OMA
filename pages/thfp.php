@@ -100,13 +100,7 @@ thfp_head('Events');thfp_nav('thfp');thfp_hero($te,$tb,$tf,$fr);
 </div>
 
 <div class="wrap"><div class="cols">
-<div>
-<div class="stats-strip">
-    <div class="sc"><span class="sv"><?php echo $te;?></span><span class="sl">Events</span></div>
-    <div class="sc"><span class="sv"><?php echo $tb;?></span><span class="sl">Bouts</span></div>
-    <div class="sc"><span class="sv"><?php echo $tf;?></span><span class="sl">Fighters</span></div>
-    <div class="sc"><span class="sv"><?php echo $fr;?>%</span><span class="sl">Finish Rate</span></div>
-</div>
+<div> 
 
 <?php foreach($events as $idx=>$ev):
     $pc=['completed'=>'p-done','upcoming'=>'p-soon','cancelled'=>'p-gone','ongoing'=>'p-live'][$ev['status']]??'p-gone';
