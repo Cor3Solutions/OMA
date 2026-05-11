@@ -64,10 +64,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 // ── DB ──
 if (file_exists('../config/database.php')) { require_once '../config/database.php'; $conn = getDbConnection(); }
-else { $conn = new mysqli('localhost','root','','oma_database'); if ($conn->connect_error) die('DB Error: '.$conn->connect_error); }
+else { $conn = new mysqli('localhost','u156115548_usr_c7q18hWL','lZ2|INcfX6my','u156115548_db_c7q18hWL'); if ($conn->connect_error) die('DB Error: '.$conn->connect_error); }
 $conn->set_charset('utf8mb4');
 
-if (!is_dir(PHOTO_DIR)) mkdir(PHOTO_DIR, 0755, true);
+if (!is_dir(PHOTO_DIR)) { @mkdir(PHOTO_DIR, 0775, true); @chmod(PHOTO_DIR, 0775); }
 
 // ── Create tables ──
 $conn->query("CREATE TABLE IF NOT EXISTS thfp_fighters (
@@ -216,17 +216,33 @@ function sc($v){ return htmlspecialchars(strip_tags(trim((string)$v))); }
 
 // ── Photo upload ──
 function handlePhotoUpload($file_key, $fighter_id = null) {
-    if (empty($_FILES[$file_key]['name']) || $_FILES[$file_key]['error'] !== UPLOAD_ERR_OK) return null;
+    global $flash;
+    if (empty($_FILES[$file_key]['name']) || $_FILES[$file_key]['error'] !== UPLOAD_ERR_OK) {
+        if (!empty($_FILES[$file_key]['error']) && $_FILES[$file_key]['error'] !== UPLOAD_ERR_NO_FILE) {
+            $flash = 'Upload error code: ' . $_FILES[$file_key]['error'] . ' (check php.ini upload_max_filesize)';
+        }
+        return null;
+    }
     $file = $_FILES[$file_key];
+    // Detect by both finfo and extension — finfo can lie on some hosts
+    $extMap = ['jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','webp'=>'image/webp','gif'=>'image/gif'];
     $allowed = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','image/gif'=>'gif'];
-    $mime = mime_content_type($file['tmp_name']);
-    if (!isset($allowed[$mime])) return null;
-    if ($file['size'] > 5 * 1024 * 1024) return null;
+    $mime = function_exists('mime_content_type') ? mime_content_type($file['tmp_name']) : '';
+    if (!isset($allowed[$mime])) {
+        // fallback: trust the file extension
+        $origExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $mime = $extMap[$origExt] ?? '';
+    }
+    if (!isset($allowed[$mime])) { $flash = 'Upload failed: unsupported image type. Use JPG, PNG, WEBP or GIF.'; return null; }
+    if ($file['size'] > 5 * 1024 * 1024) { $flash = 'Upload failed: image must be under 5MB.'; return null; }
+    if (!is_dir(PHOTO_DIR)) { @mkdir(PHOTO_DIR, 0775, true); @chmod(PHOTO_DIR, 0775); }
+    if (!is_writable(PHOTO_DIR)) { $flash = 'Upload failed: uploads folder not writable — create admin/uploads/thfp_fighters/ in File Manager and set permissions to 755.'; return null; }
     $ext = $allowed[$mime];
     $safe_id = $fighter_id ? (int)$fighter_id : 'tmp_' . uniqid();
     $filename = 'fighter_' . $safe_id . '_' . time() . '.' . $ext;
     $dest = PHOTO_DIR . $filename;
-    if (move_uploaded_file($file['tmp_name'], $dest)) return PHOTO_URL . $filename;
+    if (move_uploaded_file($file['tmp_name'], $dest)) { @chmod($dest, 0644); return PHOTO_URL . $filename; }
+    $flash = 'Upload failed: could not move file to ' . PHOTO_DIR . ' — check folder permissions.';
     return null;
 }
 function deleteOldPhoto($photo_path) {
@@ -315,7 +331,7 @@ if (($_POST['action'] ?? '') === 'save_fighter') {
         }
         $stmt->close();
     }
-    $flash = $id ? 'Fighter updated.' : 'Fighter added.';
+    if (empty($flash)) $flash = $id ? 'Fighter updated.' : 'Fighter added.';
 }
 if (isset($_POST['delete_fighter'])) {
     $fid = (int)$_POST['id'];
@@ -459,6 +475,7 @@ html,body{height:100%;background:var(--dark);color:var(--white);font-family:var(
 .stat-lbl{font-size:.65rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:3px;}
 .flash{display:flex;align-items:center;gap:10px;padding:.9rem 1.2rem;border-radius:3px;margin-bottom:1.5rem;font-size:.9rem;}
 .flash-ok{background:rgba(232,52,26,.08);border:1px solid var(--fire-border);color:var(--fire-light);}
+.flash-err{background:rgba(200,30,30,.15);border:1px solid rgba(200,30,30,.5);color:#ffaaaa;}
 .panel{background:var(--surface);border:1px solid var(--fire-border);border-radius:4px;overflow:hidden;}
 .panel-head{background:var(--black);border-bottom:1px solid var(--fire-border);padding:.95rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:relative;}
 .panel-head::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--fire),var(--ember),transparent);}
@@ -589,7 +606,8 @@ html,body{height:100%;background:var(--dark);color:var(--white);font-family:var(
     </div>
 
     <div class="content">
-        <?php if($flash):?><div class="flash flash-ok">&#9733; <?php echo htmlspecialchars($flash);?></div><?php endif;?>
+        <?php if($flash):?><div class="flash <?php echo strpos($flash,'Upload failed')===0||strpos($flash,'Upload error')===0?'flash-err':'flash-ok';?>">
+            <?php echo strpos($flash,'Upload failed')===0||strpos($flash,'Upload error')===0?'&#9888;':'&#9733;';?> <?php echo htmlspecialchars($flash);?></div><?php endif;?>
         <div class="stats-strip">
             <div class="stat-box"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="stat-val"><?php echo $ev_count;?></div><div class="stat-lbl">Events</div></div></div>
             <div class="stat-box"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg></div><div><div class="stat-val"><?php echo $bo_count;?></div><div class="stat-lbl">Bouts</div></div></div>

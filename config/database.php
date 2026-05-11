@@ -6,13 +6,13 @@
 
 // Database credentials
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'oma_database');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_NAME', 'u156115548_db_c7q18hWL');
+define('DB_USER', 'u156115548_usr_c7q18hWL');
+define('DB_PASS', 'lZ2|INcfX6my');
 
 // Site configuration
 define('SITE_NAME', 'Oriental Muayboran Academy');
-define('SITE_URL', 'http://localhost/oma');
+define('SITE_URL', 'https://muayboranacademyph.com');
 define('ADMIN_EMAIL', 'admin@oma.com');
 
 // Upload directories
@@ -26,7 +26,7 @@ define('UPLOAD_URL', SITE_URL . '/assets/uploads/');
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_secure', 0); // Set to 1 if using HTTPS
+    ini_set('session.cookie_secure', 1); // Hostinger provides SSL/HTTPS
     session_start();
 }
 // If a session is already active (status === PHP_SESSION_ACTIVE) we skip the

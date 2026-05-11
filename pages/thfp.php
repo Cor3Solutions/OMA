@@ -4,15 +4,15 @@ require_once 'shared.php';
 $conn=thfp_db();$events=[];$all_fighters_map=[];$te=$tb=$tf=$fr=0;
 if($conn){
     $res=$conn->query("SELECT * FROM thfp_events ORDER BY event_number DESC");
-    while($e=$res->fetch_assoc()){$e['bouts']=[];$rb=$conn->query("SELECT b.*,rf.id AS red_id,rf.name AS red_name,rf.gym AS red_gym,bf.id AS blue_id,bf.name AS blue_name,bf.gym AS blue_gym,wf.name AS winner_name FROM thfp_bouts b LEFT JOIN thfp_fighters rf ON b.red_fighter_id=rf.id LEFT JOIN thfp_fighters bf ON b.blue_fighter_id=bf.id LEFT JOIN thfp_fighters wf ON b.winner_id=wf.id WHERE b.event_id={$e['id']} ORDER BY b.bout_order ASC");while($b=$rb->fetch_assoc())$e['bouts'][]=$b;$events[]=$e;}
-    $te=(int)$conn->query("SELECT COUNT(*) c FROM thfp_events")->fetch_assoc()['c'];
-    $tb=(int)$conn->query("SELECT COUNT(*) c FROM thfp_bouts")->fetch_assoc()['c'];
-    $tf=(int)$conn->query("SELECT COUNT(*) c FROM thfp_fighters")->fetch_assoc()['c'];
-    $fin=(int)$conn->query("SELECT COUNT(*) c FROM thfp_bouts WHERE result_method IN('KO','TKO','RSC')")->fetch_assoc()['c'];
-    $tot=(int)$conn->query("SELECT COUNT(*) c FROM thfp_bouts WHERE result_method IS NOT NULL AND result_method!='no_contest'")->fetch_assoc()['c'];
+    if($res) while($e=$res->fetch_assoc()){$e['bouts']=[];$rb=$conn->query("SELECT b.*,rf.id AS red_id,rf.name AS red_name,rf.gym AS red_gym,bf.id AS blue_id,bf.name AS blue_name,bf.gym AS blue_gym,wf.name AS winner_name FROM thfp_bouts b LEFT JOIN thfp_fighters rf ON b.red_fighter_id=rf.id LEFT JOIN thfp_fighters bf ON b.blue_fighter_id=bf.id LEFT JOIN thfp_fighters wf ON b.winner_id=wf.id WHERE b.event_id={$e['id']} ORDER BY b.bout_order ASC");if($rb)while($b=$rb->fetch_assoc())$e['bouts'][]=$b;$events[]=$e;}
+    $r=$conn->query("SELECT COUNT(*) c FROM thfp_events");if($r)$te=(int)$r->fetch_assoc()['c'];
+    $r=$conn->query("SELECT COUNT(*) c FROM thfp_bouts");if($r)$tb=(int)$r->fetch_assoc()['c'];
+    $r=$conn->query("SELECT COUNT(*) c FROM thfp_fighters");if($r)$tf=(int)$r->fetch_assoc()['c'];
+    $r=$conn->query("SELECT COUNT(*) c FROM thfp_bouts WHERE result_method IN('KO','TKO','RSC')");$fin=$r?((int)$r->fetch_assoc()['c']):0;
+    $r=$conn->query("SELECT COUNT(*) c FROM thfp_bouts WHERE result_method IS NOT NULL AND result_method!='no_contest'");$tot=$r?((int)$r->fetch_assoc()['c']):0;
     $fr=$tot>0?round(($fin/$tot)*100):0;
     $f_sel=fighterSelect($conn);$ra=$conn->query("SELECT $f_sel FROM thfp_fighters f ORDER BY name");
-    while($f=$ra->fetch_assoc())$all_fighters_map[$f['id']]=$f;
+    if($ra)while($f=$ra->fetch_assoc())$all_fighters_map[$f['id']]=$f;
 }
 $dlabels=['muay_thai'=>'Muay Thai','kickboxing'=>'Kickboxing','mma'=>'MMA'];
 $dclass=['muay_thai'=>'disc-mt','kickboxing'=>'disc-kb','mma'=>'disc-mma'];
@@ -136,7 +136,8 @@ thfp_head('Events');thfp_nav('thfp');thfp_hero($te,$tb,$tf,$fr);
     ?>
     <div class="bout-row">
         <div class="fc <?php echo $rw?'winner':'';?>" <?php if($rid):?>onclick="of(<?php echo $rid;?>)"<?php endif;?>>
-            <div class="fc-av"><?php echo initials($b['red_name']??'?');?></div>
+            <div class="fc-av"><?php $rp=photoUrl($all_fighters_map[$rid]['photo_path']??'');if($rp):?><img src="<?php echo htmlspecialchars($rp);?>" alt="" onerror="this.parentNode.textContent='<?php echo initials($b['red_name']??'?');?>'">
+            <?php else: echo initials($b['red_name']??'?'); endif;?></div>
             <div><div class="fc-name"><?php echo htmlspecialchars($b['red_name']??'TBA');?></div><?php if(!empty($b['red_gym'])):?><div class="fc-gym"><?php echo htmlspecialchars($b['red_gym']);?></div><?php endif;?><?php if($rid):?><div class="fc-cta">View profile</div><?php endif;?></div>
         </div>
         <div class="bc">
@@ -148,7 +149,8 @@ thfp_head('Events');thfp_nav('thfp');thfp_hero($te,$tb,$tf,$fr);
             <?php else:?><span class="bc-pend"><?php echo $ev['status']==='upcoming'?'Scheduled':'TBD';?></span><?php endif;?>
         </div>
         <div class="fc right <?php echo $bw?'winner':'';?>" <?php if($bid):?>onclick="of(<?php echo $bid;?>)"<?php endif;?>>
-            <div class="fc-av"><?php echo initials($b['blue_name']??'?');?></div>
+            <div class="fc-av"><?php $bp=photoUrl($all_fighters_map[$bid]['photo_path']??'');if($bp):?><img src="<?php echo htmlspecialchars($bp);?>" alt="" onerror="this.parentNode.textContent='<?php echo initials($b['blue_name']??'?');?>'">
+            <?php else: echo initials($b['blue_name']??'?'); endif;?></div>
             <div><div class="fc-name"><?php echo htmlspecialchars($b['blue_name']??'TBA');?></div><?php if(!empty($b['blue_gym'])):?><div class="fc-gym"><?php echo htmlspecialchars($b['blue_gym']);?></div><?php endif;?><?php if($bid):?><div class="fc-cta">View profile</div><?php endif;?></div>
         </div>
     </div>

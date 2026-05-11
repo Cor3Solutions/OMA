@@ -5,7 +5,7 @@ $conn=thfp_db();$divs=[];
 if($conn){
     $f_sel=fighterSelect($conn);
     $res=$conn->query("SELECT $f_sel,(SELECT COUNT(*) FROM thfp_bouts WHERE winner_id=f.id) AS bout_wins FROM thfp_fighters f WHERE f.status='active' ORDER BY f.weight_class+0 ASC,bout_wins DESC,f.name ASC");
-    while($f=$res->fetch_assoc()){
+    if($res)while($f=$res->fetch_assoc()){
         $key=($f['weight_class']??'').'|'.strtolower($f['age_category']??'').'|'.strtolower($f['gender']??'');
         $divs[$key][]=$f;
     }
